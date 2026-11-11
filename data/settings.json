@@ -1,0 +1,10 @@
+{
+    "nama_toko": "Kantin Kejujuran",
+    "tagline": "Ambil, Bayar, Jujur",
+    "nama_merchant": "Kantin Kejujuran Official",
+    "nmid": "ID1023456789012",
+    "qris_durasi": 900,
+    "batas_stok_tipis": 5,
+    "toggle_qris": true,
+    "toggle_notifikasi": true
+}

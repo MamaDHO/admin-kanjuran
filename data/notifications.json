@@ -1,0 +1,47 @@
+[
+    {
+        "id": 1,
+        "tipe": "stok",
+        "judul": "Stok menipis",
+        "pesan": "Keripik Singkong tersisa 2 pcs.",
+        "waktu": "10:20",
+        "dibaca": false,
+        "timestamp": 1793074710
+    },
+    {
+        "id": 2,
+        "tipe": "stok",
+        "judul": "Stok menipis",
+        "pesan": "Roti Cokelat tersisa 3 pcs.",
+        "waktu": "09:58",
+        "dibaca": false,
+        "timestamp": 1793073510
+    },
+    {
+        "id": 3,
+        "tipe": "pembayaran",
+        "judul": "Pembayaran diterima",
+        "pesan": "#TRX038 · Rp 3.000 via QRIS.",
+        "waktu": "10:24",
+        "dibaca": true,
+        "timestamp": 1793075110
+    },
+    {
+        "id": 4,
+        "tipe": "pembayaran",
+        "judul": "Pembayaran kedaluwarsa",
+        "pesan": "#TRX033 tidak dibayar dalam 15 menit.",
+        "waktu": "09:45",
+        "dibaca": true,
+        "timestamp": 1793072910
+    },
+    {
+        "id": 5,
+        "tipe": "stok",
+        "judul": "Restock tersimpan",
+        "pesan": "Air Mineral +24 pcs.",
+        "waktu": "Kemarin",
+        "dibaca": true,
+        "timestamp": 1792991910
+    }
+]
