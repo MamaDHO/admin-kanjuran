@@ -163,7 +163,8 @@ admin_page_start('Penjualan', 'penjualan');
         <?php
         $statsDash = admin_get_dashboard_stats();
         $chartData = $statsDash['chart_7_hari'];
-        $maxC = max([1, ...array_column($chartData, 'total')]);
+        $cTotals = array_column($chartData, 'total');
+        $maxC = !empty($cTotals) ? max(1, max($cTotals)) : 1;
         ?>
         <div style="height: 220px; display: flex; align-items: flex-end; gap: 14px; padding: 14px 0 0; border-bottom: 1px solid var(--line);">
             <?php foreach ($chartData as $c): 
@@ -188,37 +189,31 @@ admin_page_start('Penjualan', 'penjualan');
         </div>
 
         <div style="display: flex; flex-direction: column; gap: 16px;">
-            <?php if (empty($productStats)): ?>
-                <div class="fs-13 text-muted" style="padding: 16px 0; text-align: center;">
-                    Belum ada transaksi penjualan pada periode ini.
-                </div>
-            <?php else: ?>
-                <?php foreach ($productStats as $rank => $prod): 
-                    $pctKontribusi = $totalPenjualan > 0 ? round(($prod['pendapatan'] / $totalPenjualan) * 100, 1) : 0;
-                ?>
-                    <div style="padding-bottom: 12px; border-bottom: 1px solid var(--line);">
-                        <div class="d-flex justify-between align-center" style="margin-bottom: 6px;">
-                            <div class="d-flex align-center gap-12">
-                                <span class="fs-14 fw-700 text-slate" style="width: 18px;">#<?= $rank + 1 ?></span>
-                                <div class="thumb-box" style="width: 36px; height: 36px;">
-                                    <img src="assets/img/<?= e($prod['gambar']) ?>" alt="<?= e($prod['nama']) ?>">
-                                </div>
-                                <div>
-                                    <div class="fs-14 fw-700"><?= e($prod['nama']) ?></div>
-                                    <div class="fs-12 text-muted"><?= e($prod['kategori']) ?> · <?= $prod['qty'] ?> pcs terjual</div>
-                                </div>
+            <?php foreach ($productStats as $rank => $prod): 
+                $pctKontribusi = $totalPenjualan > 0 ? round(($prod['pendapatan'] / $totalPenjualan) * 100, 1) : 0;
+            ?>
+                <div style="padding-bottom: 12px; border-bottom: 1px solid var(--line);">
+                    <div class="d-flex justify-between align-center" style="margin-bottom: 6px;">
+                        <div class="d-flex align-center gap-12">
+                            <span class="fs-14 fw-700 text-slate" style="width: 18px;">#<?= $rank + 1 ?></span>
+                            <div class="thumb-box" style="width: 36px; height: 36px;">
+                                <img src="assets/img/<?= e($prod['gambar']) ?>" alt="<?= e($prod['nama']) ?>">
                             </div>
-                            <div style="text-align: right;">
-                                <div class="fw-700 fs-14 text-navy"><?= rupiah($prod['pendapatan']) ?></div>
-                                <div class="fs-11 fw-600 text-blue"><?= $pctKontribusi ?>% kontribusi</div>
+                            <div>
+                                <div class="fs-14 fw-700"><?= e($prod['nama']) ?></div>
+                                <div class="fs-12 text-muted"><?= e($prod['kategori']) ?> · <?= $prod['qty'] ?> pcs terjual</div>
                             </div>
                         </div>
-                        <div style="width: 100%; height: 6px; background: var(--tint); border-radius: 999px; overflow: hidden;">
-                            <div style="width: <?= min(100, (int) $pctKontribusi * 3) ?>%; height: 100%; background: var(--blue); border-radius: 999px;"></div>
+                        <div style="text-align: right;">
+                            <div class="fw-700 fs-14 text-navy"><?= rupiah($prod['pendapatan']) ?></div>
+                            <div class="fs-11 fw-600 text-blue"><?= $pctKontribusi ?>% kontribusi</div>
                         </div>
                     </div>
-                <?php endforeach; ?>
-            <?php endif; ?>
+                    <div style="width: 100%; height: 6px; background: var(--tint); border-radius: 999px; overflow: hidden;">
+                        <div style="width: <?= min(100, (int) $pctKontribusi * 3) ?>%; height: 100%; background: var(--blue); border-radius: 999px;"></div>
+                    </div>
+                </div>
+            <?php endforeach; ?>
         </div>
     </div>
 

@@ -206,45 +206,37 @@ admin_page_start('Laporan', 'laporan');
                 </tr>
             </thead>
             <tbody>
-                <?php if (empty($productReport)): ?>
+                <?php foreach ($productReport as $pr): 
+                    $pct = $totalPendapatan > 0 ? round(($pr['pendapatan'] / $totalPendapatan) * 100, 1) : 0;
+                ?>
                     <tr>
-                        <td colspan="5" class="text-muted fs-13" style="text-align: center; padding: 24px;">
-                            Belum ada data penjualan pada periode ini.
+                        <td>
+                            <div class="d-flex align-center gap-12">
+                                <div class="thumb-box" style="width: 38px; height: 38px;">
+                                    <img src="assets/img/<?= e($pr['gambar']) ?>" alt="<?= e($pr['nama']) ?>">
+                                </div>
+                                <span class="fw-700 fs-14 text-navy"><?= e($pr['nama']) ?></span>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="badge badge-blue"><?= e($pr['kategori']) ?></span>
+                        </td>
+                        <td>
+                            <span class="fw-700 fs-14 text-slate"><?= $pr['terjual'] ?> pcs</span>
+                        </td>
+                        <td>
+                            <span class="fw-700 fs-14 text-navy"><?= rupiah($pr['pendapatan']) ?></span>
+                        </td>
+                        <td>
+                            <div class="d-flex align-center gap-10" style="min-width: 140px;">
+                                <div style="flex: 1; height: 6px; background: var(--tint); border-radius: 999px; overflow: hidden;">
+                                    <div style="width: <?= min(100, (int) $pct * 2.5) ?>%; height: 100%; background: var(--blue); border-radius: 999px;"></div>
+                                </div>
+                                <span class="fs-12 fw-700 text-blue"><?= $pct ?>%</span>
+                            </div>
                         </td>
                     </tr>
-                <?php else: ?>
-                    <?php foreach ($productReport as $pr): 
-                        $pct = $totalPendapatan > 0 ? round(($pr['pendapatan'] / $totalPendapatan) * 100, 1) : 0;
-                    ?>
-                        <tr>
-                            <td>
-                                <div class="d-flex align-center gap-12">
-                                    <div class="thumb-box" style="width: 38px; height: 38px;">
-                                        <img src="assets/img/<?= e($pr['gambar']) ?>" alt="<?= e($pr['nama']) ?>">
-                                    </div>
-                                    <span class="fw-700 fs-14 text-navy"><?= e($pr['nama']) ?></span>
-                                </div>
-                            </td>
-                            <td>
-                                <span class="badge badge-blue"><?= e($pr['kategori']) ?></span>
-                            </td>
-                            <td>
-                                <span class="fw-700 fs-14 text-slate"><?= $pr['terjual'] ?> pcs</span>
-                            </td>
-                            <td>
-                                <span class="fw-700 fs-14 text-navy"><?= rupiah($pr['pendapatan']) ?></span>
-                            </td>
-                            <td>
-                                <div class="d-flex align-center gap-10" style="min-width: 140px;">
-                                    <div style="flex: 1; height: 6px; background: var(--tint); border-radius: 999px; overflow: hidden;">
-                                        <div style="width: <?= min(100, (int) $pct * 2.5) ?>%; height: 100%; background: var(--blue); border-radius: 999px;"></div>
-                                    </div>
-                                    <span class="fs-12 fw-700 text-blue"><?= $pct ?>%</span>
-                                </div>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
-                <?php endif; ?>
+                <?php endforeach; ?>
             </tbody>
         </table>
     </div>
