@@ -1,5 +1,5 @@
 :root {
-  /* Warna Dasar & Token Mengacu pada Mockup SVG */
+  /* Warna Dasar & Token */
   --blue: #1677F8;
   --blue-dark: #0B4BB8;
   --blue-light: #E5F0FF;
@@ -10,7 +10,7 @@
   --grey: #8192A9;
   --line: #EAF0F6;
   --tint: #F5F9FD;
-  --bg-page: #F5F9FD;
+  --bg-page: #F8FAFC;
   --white: #FFFFFF;
   
   /* Status Semantik */
@@ -30,20 +30,20 @@
   --purple-bg: #EFE8FF;
   
   /* Border Radius */
-  --radius-card: 12px;
+  --radius-card: 14px;
   --radius-btn: 10px;
-  --radius-chip: 8px;
+  --radius-chip: 10px;
   --radius-pill: 999px;
   --radius-sm: 8px;
   
   /* Bayangan & Efek */
-  --shadow-sm: 0 1px 3px rgba(33, 50, 79, 0.04);
-  --shadow-md: 0 4px 14px rgba(33, 50, 79, 0.06);
-  --shadow-lg: 0 10px 30px rgba(33, 50, 79, 0.10);
-  --shadow-dropdown: 0 10px 25px rgba(33, 50, 79, 0.12);
+  --shadow-sm: 0 1px 3px rgba(33, 50, 79, 0.05);
+  --shadow-md: 0 4px 14px rgba(33, 50, 79, 0.07);
+  --shadow-lg: 0 10px 30px rgba(33, 50, 79, 0.12);
+  --shadow-dropdown: 0 10px 25px rgba(33, 50, 79, 0.15);
   
-  --sidebar-w: 298px;
-  --topbar-h: 60px;
+  --sidebar-w: 280px;
+  --topbar-h: 70px;
   --bottomnav-h: 64px;
 }
 
@@ -307,13 +307,19 @@ button:disabled {
 
 .bell-badge-count {
   position: absolute;
-  top: 4px;
-  right: 4px;
-  min-width: 10px;
-  height: 10px;
+  top: -3px;
+  right: -3px;
+  min-width: 18px;
+  height: 18px;
   border-radius: var(--radius-pill);
-  background: #FF4D4F;
-  border: 1.5px solid #fff;
+  background: var(--red);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+  border: 2px solid #fff;
+  padding: 0 4px;
 }
 
 .topbar-user-dropdown {
@@ -324,32 +330,32 @@ button:disabled {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 4px 6px;
+  padding: 6px 12px 6px 6px;
   border-radius: var(--radius-btn);
-  border: none;
-  background: transparent;
-  cursor: pointer;
+  border: 1px solid var(--line);
+  background: #fff;
   transition: background 0.15s;
 }
 
 .user-profile-btn:hover {
-  background: rgba(0, 0, 0, 0.04);
+  background: var(--tint);
 }
 
 .avatar-circle {
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
-  background: var(--blue);
-  color: #fff;
+  background: var(--blue-light);
+  color: var(--blue);
+  font-weight: 700;
+  font-size: 13.5px;
   display: grid;
   place-items: center;
-  flex: none;
 }
 
 .user-name-text {
-  font-size: 16px;
-  font-weight: 500;
+  font-size: 14px;
+  font-weight: 600;
   color: var(--navy);
 }
 
@@ -549,33 +555,16 @@ button:disabled {
 }
 
 .page-title-lg {
-  font-size: 34px;
+  font-size: 28px;
   font-weight: 700;
   color: var(--navy);
   letter-spacing: -0.5px;
-  line-height: 1.2;
 }
 
 .page-subtitle-lg {
-  font-size: 15px;
+  font-size: 14.5px;
   color: var(--slate);
-  margin-top: 6px;
-}
-
-.header-date-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  height: 44px;
-  padding: 0 18px;
-  border-radius: 10px;
-  background: #fff;
-  border: 1px solid var(--line);
-  font-size: 15px;
-  font-weight: 500;
-  color: var(--navy);
-  box-shadow: var(--shadow-sm);
-  white-space: nowrap;
+  margin-top: 4px;
 }
 
 /* ------------------------------------------------------------------ */
@@ -603,81 +592,66 @@ button:disabled {
   margin-top: 2px;
 }
 
-/* KPI Stat Cards (Mengacu Persis Mockup Desktop 02) */
+/* KPI Stat Cards */
 .kpi-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 14px;
-  margin-bottom: 24px;
-}
-
-@media (min-width: 1024px) {
-  .kpi-grid {
-    grid-template-columns: repeat(4, 1fr);
-    gap: 18px;
-  }
+  margin-bottom: 20px;
 }
 
 .kpi-card {
-  padding: 22px 20px;
-  border-radius: 14px;
+  padding: 18px 16px;
+  border-radius: var(--radius-card);
   display: flex;
-  align-items: center;
-  gap: 16px;
+  flex-direction: column;
+  gap: 8px;
   position: relative;
-  border: none;
-  min-height: 140px;
-  box-shadow: none;
+  border: 1px solid transparent;
 }
 
 .kpi-blue {
-  background: #E5F0FF;
+  background: var(--blue-light);
   color: var(--navy);
 }
 .kpi-green {
-  background: #E7F8EF;
+  background: var(--green-bg);
   color: var(--navy);
 }
 .kpi-amber {
-  background: #FFF2DD;
+  background: var(--amber-bg);
   color: var(--navy);
 }
 .kpi-purple {
-  background: #F0E9FF;
+  background: var(--purple-bg);
   color: var(--navy);
 }
 
-.kpi-circle-icon {
-  width: 60px;
-  height: 60px;
-  border-radius: 50%;
+.kpi-icon-wrap {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.7);
   display: grid;
   place-items: center;
-  flex: none;
+  margin-bottom: 2px;
 }
 
-.kpi-circle-icon.blue   { background: #1677F8; color: #fff; }
-.kpi-circle-icon.green  { background: #35B679; color: #fff; }
-.kpi-circle-icon.amber  { background: #F3A827; color: #fff; }
-.kpi-circle-icon.purple { background: #8B5CF6; color: #fff; }
-
-.kpi-body {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  min-width: 0;
-}
+.kpi-blue .kpi-icon-wrap { color: var(--blue); }
+.kpi-green .kpi-icon-wrap { color: var(--green); }
+.kpi-amber .kpi-icon-wrap { color: var(--amber); }
+.kpi-purple .kpi-icon-wrap { color: var(--purple); }
 
 .kpi-label {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
-  color: #51617A;
+  color: var(--slate);
 }
 
 .kpi-value {
-  font-size: 28px;
+  font-size: 24px;
   font-weight: 700;
-  line-height: 1.15;
+  line-height: 1.1;
   color: var(--navy);
 }
 
@@ -685,203 +659,16 @@ button:disabled {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 14px;
-  font-weight: 700;
-  color: #1E9E62;
-  margin-top: 2px;
+  font-size: 12px;
+  font-weight: 600;
 }
 
+.kpi-change.up { color: var(--green); }
+.kpi-change.down { color: var(--red); }
 .kpi-change-sub {
-  color: #8192A9;
-  font-size: 12px;
+  color: var(--grey);
   font-weight: 400;
   margin-left: 2px;
-}
-
-.kpi-alert-text {
-  font-size: 13px;
-  font-weight: 600;
-  color: #E5484D;
-  margin-top: 3px;
-}
-
-/* Dashboard Main 2-Column Grid (Mockup 02) */
-.dashboard-main-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 20px;
-}
-
-@media (min-width: 1024px) {
-  .dashboard-main-grid {
-    grid-template-columns: 1.28fr 1fr;
-    gap: 20px;
-    align-items: start;
-  }
-}
-
-.card-dashboard {
-  background: #FFFFFF;
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  padding: 22px 24px;
-  box-shadow: none;
-}
-
-.card-title-main {
-  font-size: 19px;
-  font-weight: 700;
-  color: var(--navy);
-}
-
-.card-subtitle-main {
-  font-size: 15px;
-  font-weight: 400;
-  color: var(--slate);
-  margin-left: 6px;
-}
-
-.card-title-section {
-  font-size: 17px;
-  font-weight: 700;
-  color: var(--navy);
-}
-
-.card-link-more {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--blue);
-  text-decoration: none;
-}
-
-.card-link-more:hover {
-  text-decoration: underline;
-}
-
-.chart-dropdown-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  height: 38px;
-  padding: 0 14px;
-  border-radius: 8px;
-  border: 1px solid #D7E3F1;
-  background: #fff;
-  font-size: 13.5px;
-  color: var(--navy);
-  cursor: pointer;
-  user-select: none;
-}
-
-.table-header-pill {
-  background: #F5F9FD;
-  height: 36px;
-  border-radius: 8px;
-  padding: 0 16px;
-  font-size: 13px;
-  font-weight: 600;
-  color: #51617A;
-  margin-top: 14px;
-  margin-bottom: 4px;
-}
-
-.dash-table-row {
-  display: flex;
-  align-items: center;
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--line);
-  font-size: 13.5px;
-  color: var(--navy);
-}
-
-.dash-table-row:last-child {
-  border-bottom: none;
-}
-
-.badge-pill-lunas {
-  background: #E7F8EF;
-  color: #1E9E62;
-  font-size: 12px;
-  font-weight: 600;
-  border-radius: 11px;
-  padding: 3px 12px;
-  display: inline-block;
-  white-space: nowrap;
-}
-
-.badge-pill-aman {
-  background: #E7F8EF;
-  color: #1E9E62;
-  font-size: 12px;
-  font-weight: 600;
-  border-radius: 11px;
-  padding: 3px 12px;
-  display: inline-block;
-  white-space: nowrap;
-}
-
-.badge-pill-menipis {
-  background: #FFF2DD;
-  color: #C77700;
-  font-size: 12px;
-  font-weight: 600;
-  border-radius: 11px;
-  padding: 3px 12px;
-  display: inline-block;
-  white-space: nowrap;
-}
-
-.top-item-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 11px 0;
-  border-bottom: 1px solid var(--line);
-}
-
-.top-item-row:last-child {
-  border-bottom: none;
-}
-
-.top-item-rank {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--grey);
-  width: 22px;
-  flex: none;
-}
-
-.top-item-img {
-  width: 42px;
-  height: 42px;
-  border-radius: 8px;
-  object-fit: contain;
-  margin: 0 12px 0 6px;
-  flex: none;
-}
-
-.top-item-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.top-item-name {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--navy);
-}
-
-.top-item-sub {
-  font-size: 12px;
-  font-weight: 400;
-  color: var(--grey);
-  margin-top: 2px;
-}
-
-.top-item-qty {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--navy);
 }
 
 /* ------------------------------------------------------------------ */
@@ -1527,336 +1314,244 @@ button:disabled {
 }
 
 /* ------------------------------------------------------------------ */
-/* Komponen Spesifik Mockup: Stand QR, Corner Brackets & Step Guides */
+/* Gaya Tambahan untuk Menyamakan dengan Mockup SVG                  */
+/* (Penjualan, Transaksi, Laporan)                                   */
 /* ------------------------------------------------------------------ */
 
-.qr-stand-card {
+.page-header-desktop {
+  margin-bottom: 24px;
+}
+.page-title-lg {
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--navy);
+  letter-spacing: -0.5px;
+}
+.page-subtitle-lg {
+  font-size: 15px;
+  color: var(--slate);
+  margin-top: 4px;
+}
+
+.page-date-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: var(--radius-btn);
   background: #fff;
   border: 1px solid var(--line);
-  border-radius: 16px;
-  padding: 32px 24px;
-  text-align: center;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--navy);
   box-shadow: var(--shadow-sm);
+}
+
+.filter-card-bar {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 4px;
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+}
+
+/* Chart Vertikal Mockup */
+.chart-box {
+  display: flex;
+  gap: 14px;
+  height: 240px;
+  margin-top: 14px;
+  position: relative;
+}
+.chart-y-axis {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 195px;
+  font-size: 12px;
+  color: var(--slate);
+  text-align: right;
+  width: 44px;
+  padding-bottom: 6px;
+  flex-shrink: 0;
+}
+.chart-plot-area {
+  flex: 1;
+  position: relative;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.chart-gridlines {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 195px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  pointer-events: none;
+}
+.chart-gridline {
+  border-top: 1px dashed var(--line);
+  width: 100%;
+}
+.chart-bars-wrap {
+  height: 195px;
+  display: flex;
+  align-items: flex-end;
+  gap: 14px;
+  position: relative;
+  z-index: 2;
+}
+.chart-col {
+  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
+  height: 100%;
+  justify-content: flex-end;
+}
+.chart-bar-rect {
+  width: 100%;
+  max-width: 44px;
+  background: #9CC4FC;
+  border-radius: 6px 6px 0 0;
+  transition: all 0.2s ease;
+  cursor: pointer;
   position: relative;
-  max-width: 440px;
-  margin: 0 auto;
 }
-
-.qr-frame-box {
-  position: relative;
-  display: inline-block;
-  padding: 16px;
-  background: #fff;
-  border-radius: 12px;
-  border: 1px solid var(--line);
-  margin: 20px auto 14px;
+.chart-bar-rect.active {
+  background: var(--blue) !important;
 }
-
-.qr-frame-box svg {
-  display: block;
-  margin: 0 auto;
+.chart-bar-rect:hover {
+  background: var(--blue-hover);
+  filter: brightness(1.05);
 }
-
-/* 4 Sudut Bracket Biru (#1677F8) Sesuai Mockup SVG */
-.qr-corner-bracket {
-  position: absolute;
-  width: 18px;
-  height: 18px;
-  pointer-events: none;
-}
-.qr-corner-bracket.tl {
-  top: 8px;
-  left: 8px;
-  border-top: 4px solid var(--blue);
-  border-left: 4px solid var(--blue);
-  border-top-left-radius: 4px;
-}
-.qr-corner-bracket.tr {
-  top: 8px;
-  right: 8px;
-  border-top: 4px solid var(--blue);
-  border-right: 4px solid var(--blue);
-  border-top-right-radius: 4px;
-}
-.qr-corner-bracket.bl {
-  bottom: 8px;
-  left: 8px;
-  border-bottom: 4px solid var(--blue);
-  border-left: 4px solid var(--blue);
-  border-bottom-left-radius: 4px;
-}
-.qr-corner-bracket.br {
-  bottom: 8px;
-  right: 8px;
-  border-bottom: 4px solid var(--blue);
-  border-right: 4px solid var(--blue);
-  border-bottom-right-radius: 4px;
-}
-
-/* 3-Step Guide List */
-.guide-step-item {
+.chart-x-labels {
+  height: 36px;
   display: flex;
-  align-items: flex-start;
-  gap: 14px;
-  margin-bottom: 18px;
+  align-items: center;
+  margin-top: 6px;
+  border-top: 1px solid var(--line);
 }
-.guide-step-item:last-child {
-  margin-bottom: 0;
-}
-.guide-step-num {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: var(--blue-light);
-  color: var(--blue);
-  font-weight: 700;
-  font-size: 13.5px;
-  display: grid;
-  place-items: center;
-  flex: none;
-}
-.guide-step-title {
-  font-size: 14.5px;
-  font-weight: 700;
-  color: var(--navy);
-  line-height: 1.3;
-}
-.guide-step-desc {
+.chart-x-labels .chart-col {
   font-size: 13px;
-  color: var(--grey);
-  margin-top: 2px;
-  line-height: 1.4;
-}
-
-/* Info Box Callout */
-.info-callout {
-  background: var(--tint);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-card);
-  padding: 14px 18px;
-}
-
-/* Notifikasi Page Chips & Items */
-.notif-filter-chips {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 18px;
-}
-.notif-filter-chip {
-  padding: 6px 16px;
-  height: 34px;
-  border-radius: 8px;
-  font-size: 12.5px;
   font-weight: 500;
-  color: var(--slate);
-  background: #fff;
-  border: 1px solid var(--line);
-  display: inline-flex;
-  align-items: center;
+  color: var(--navy);
   justify-content: center;
-  transition: all 0.15s ease;
-}
-.notif-filter-chip.active {
-  background: var(--blue);
-  color: #fff;
-  border-color: var(--blue);
-  font-weight: 600;
 }
 
-.notif-feed-card {
-  background: #fff;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-card);
-  overflow: hidden;
-}
-.notif-row {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 16px 20px;
-  border-bottom: 1px solid var(--line);
-  transition: background 0.12s;
-  position: relative;
-}
-.notif-row:last-child {
-  border-bottom: none;
-}
-.notif-row.unread {
-  background: #F7FAFF;
-}
-.notif-badge-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
+/* Layout 2 Kolom Transaksi */
+.trx-desktop-layout {
   display: grid;
-  place-items: center;
-  flex: none;
-}
-.notif-badge-icon.stok {
-  background: var(--amber-bg);
-  color: var(--amber);
-}
-.notif-badge-icon.pembayaran-paid {
-  background: var(--green-bg);
-  color: var(--green);
-}
-.notif-badge-icon.pembayaran-expired {
-  background: var(--red-bg);
-  color: var(--red);
-}
-.notif-badge-icon.restock {
-  background: var(--blue-light);
-  color: var(--blue);
-}
-.notif-unread-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--blue);
-  flex: none;
-}
-
-/* Settings Split-Pane Layout Sesuai Mockup 09 Pengaturan admin.svg & 14 Pengaturan admin.svg */
-.settings-container-desktop {
-  display: grid;
-  grid-template-columns: 280px 1fr;
+  grid-template-columns: 1fr 370px;
   gap: 24px;
   align-items: start;
 }
-.settings-subnav-card {
-  background: #fff;
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  padding: 10px;
+@media (max-width: 1100px) {
+  .trx-desktop-layout {
+    grid-template-columns: 1fr;
+  }
 }
-.settings-subnav-item {
-  display: flex;
+
+/* Pagination Mockup */
+.pagination-mockup {
+  display: inline-flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px 14px;
-  border-radius: 10px;
-  font-size: 14.5px;
+  gap: 6px;
+}
+.page-link-btn {
+  min-width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--slate);
+  font-size: 13px;
   font-weight: 500;
-  color: var(--navy);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s;
   text-decoration: none;
-  transition: all 0.15s ease;
 }
-.settings-subnav-item:hover {
+.page-link-btn:hover {
   background: var(--tint);
+  color: var(--navy);
 }
-.settings-subnav-item.active {
-  background: #E5F0FF;
+.page-link-btn.active {
+  background: #fff;
+  border-color: var(--blue);
   color: var(--blue);
   font-weight: 700;
 }
-.settings-subnav-item.active svg {
-  color: var(--blue);
-}
-.settings-subnav-item.logout {
-  color: #E5484D;
-}
-.settings-subnav-item.logout:hover {
-  background: #FFECEC;
-}
-.settings-subnav-divider {
-  height: 1px;
-  background: var(--line);
-  margin: 8px 10px;
-}
-.settings-content-card {
-  background: #fff;
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  padding: 28px;
-}
 
-/* Mobile Settings Groups Sesuai Mockup 14 Pengaturan admin.svg */
+/* Mobile Transaction Card List */
+.mobile-trx-list {
+  display: none;
+}
 @media (max-width: 1023px) {
-  .settings-container-desktop {
-    display: block;
+  .desktop-table-wrap {
+    display: none;
   }
-  .settings-desktop-only {
-    display: none !important;
-  }
-}
-@media (min-width: 1024px) {
-  .settings-mobile-only {
-    display: none !important;
+  .mobile-trx-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
   }
 }
-.mobile-settings-group {
-  margin-bottom: 20px;
-}
-.mobile-settings-title {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--grey);
-  margin-bottom: 8px;
-  padding-left: 4px;
-}
-.mobile-settings-card {
+.mobile-trx-card {
   background: #fff;
   border: 1px solid var(--line);
-  border-radius: 10px;
-  overflow: hidden;
-}
-.mobile-settings-link {
+  border-radius: 12px;
+  padding: 14px 16px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--line);
-  text-decoration: none;
-  color: var(--navy);
+  gap: 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+  box-shadow: var(--shadow-sm);
 }
-.mobile-settings-link:last-child {
-  border-bottom: none;
+.mobile-trx-card:hover,
+.mobile-trx-card:active {
+  background: #F8FAFC;
 }
-.mobile-settings-icon {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: #E5F0FF;
-  color: var(--blue);
+.mobile-trx-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
   display: grid;
   place-items: center;
   flex: none;
 }
-.mobile-settings-icon.red {
-  background: #FFECEC;
-  color: #E5484D;
+.mobile-trx-icon.paid {
+  background: var(--green-bg);
+  color: var(--green);
+}
+.mobile-trx-icon.pending {
+  background: var(--amber-bg);
+  color: var(--amber);
+}
+.mobile-trx-icon.expired {
+  background: var(--red-bg);
+  color: var(--red);
 }
 
-/* Cetak / Print Stylesheet Khusus Kartu Stand QR */
-@media print {
-  body {
-    background: #fff !important;
-  }
-  .desktop-sidebar,
-  .desktop-topbar,
-  .mobile-header,
-  .mobile-bottom-nav,
-  .drawer-backdrop,
-  .no-print,
-  .page-header-desktop {
-    display: none !important;
-  }
-  .admin-main {
-    margin-left: 0 !important;
-    padding: 0 !important;
-  }
-  .page-container {
-    padding: 0 !important;
-    max-width: 100% !important;
-  }
-  .qr-stand-card {
-    border: 2px solid #21324F !important;
-    box-shadow: none !important;
-    margin: 40px auto !important;
-    max-width: 500px !important;
-    page-break-inside: avoid;
-  }
+.table-header-mockup {
+  background: var(--tint);
+  border-radius: 8px;
 }
+.table-header-mockup th {
+  background: transparent !important;
+  border: none !important;
+  color: var(--slate);
+  font-weight: 600;
+  font-size: 13px;
+  padding: 12px 14px;
+}
+
