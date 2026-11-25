@@ -100,68 +100,71 @@ admin_page_start('Dashboard', 'dashboard');
 </div>
 
 <!-- 4 Kartu KPI Statistik Sesuai Mockup SVG #02 -->
-<div class="kpi-grid" style="margin-bottom: 24px;">
+<div class="kpi-grid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 24px;">
     <!-- Card 1: Total Penjualan -->
-    <div class="kpi-card" style="background: #E5F0FF; border-radius: 12px; padding: 18px 20px;">
-        <div class="kpi-icon-wrap" style="background: #DBEAFE; color: var(--blue); width: 36px; height: 36px; margin-bottom: 8px;">
-            <?= icon('transaksi', 18) ?>
+    <div class="kpi-card" style="background: #E5F0FF; border-radius: 14px; padding: 20px 22px; border: none; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+        <div class="kpi-icon-wrap" style="background: #1677F8; color: #fff; width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 12px;">
+            <?= icon('cart', 22, '', '#fff') ?>
         </div>
-        <div class="kpi-label" style="font-size: 13px; color: var(--slate); font-weight: 500;">Total Penjualan</div>
-        <div class="kpi-value" style="font-size: 24px; font-weight: 700; color: var(--navy); margin: 2px 0 6px;">Rp 428.000</div>
-        <div class="d-flex align-center gap-6" style="font-size: 12px; color: var(--green); font-weight: 600;">
-            <?= icon('trending-up', 14) ?>
+        <div class="kpi-label" style="font-size: 13.5px; color: var(--slate); font-weight: 500;">Total Penjualan</div>
+        <div class="kpi-value" style="font-size: 26px; font-weight: 700; color: var(--navy); margin: 3px 0 6px;">Rp 428.000</div>
+        <div class="d-flex align-center gap-6" style="font-size: 12px; color: #1E9E62; font-weight: 600;">
+            <?= icon('arrow-up', 14, '', '#1E9E62') ?>
             <span>12% dari kemarin</span>
         </div>
     </div>
 
     <!-- Card 2: Jumlah Transaksi -->
-    <div class="kpi-card" style="background: #E7F8EF; border-radius: 12px; padding: 18px 20px;">
-        <div class="kpi-icon-wrap" style="background: #D1F2DF; color: var(--green); width: 36px; height: 36px; margin-bottom: 8px;">
-            <?= icon('check', 18) ?>
+    <div class="kpi-card" style="background: #E7F8EF; border-radius: 14px; padding: 20px 22px; border: none; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+        <div class="kpi-icon-wrap" style="background: #35B679; color: #fff; width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 12px;">
+            <?= icon('receipt-card', 22, '', '#fff') ?>
         </div>
-        <div class="kpi-label" style="font-size: 13px; color: var(--slate); font-weight: 500;">Jumlah Transaksi</div>
-        <div class="kpi-value" style="font-size: 24px; font-weight: 700; color: var(--navy); margin: 2px 0 6px;">38</div>
-        <div class="d-flex align-center gap-6" style="font-size: 12px; color: var(--green); font-weight: 600;">
-            <?= icon('trending-up', 14) ?>
+        <div class="kpi-label" style="font-size: 13.5px; color: var(--slate); font-weight: 500;">Jumlah Transaksi</div>
+        <div class="kpi-value" style="font-size: 26px; font-weight: 700; color: var(--navy); margin: 3px 0 6px;">38</div>
+        <div class="d-flex align-center gap-6" style="font-size: 12px; color: #1E9E62; font-weight: 600;">
+            <?= icon('arrow-up', 14, '', '#1E9E62') ?>
             <span>9% dari kemarin</span>
         </div>
     </div>
 
     <!-- Card 3: Barang Terjual -->
-    <div class="kpi-card" style="background: #FFF2DD; border-radius: 12px; padding: 18px 20px;">
-        <div class="kpi-icon-wrap" style="background: #FEE8C8; color: var(--amber); width: 36px; height: 36px; margin-bottom: 8px;">
-            <?= icon('cart', 18) ?>
+    <div class="kpi-card" style="background: #FFF2DD; border-radius: 14px; padding: 20px 22px; border: none; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+        <div class="kpi-icon-wrap" style="background: #F3A827; color: #fff; width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 12px;">
+            <?= icon('barang', 22, '', '#fff') ?>
         </div>
-        <div class="kpi-label" style="font-size: 13px; color: var(--slate); font-weight: 500;">Barang Terjual</div>
-        <div class="kpi-value" style="font-size: 24px; font-weight: 700; color: var(--navy); margin: 2px 0 6px;">126</div>
-        <div class="d-flex align-center gap-6" style="font-size: 12px; color: var(--green); font-weight: 600;">
-            <?= icon('trending-up', 14) ?>
+        <div class="kpi-label" style="font-size: 13.5px; color: var(--slate); font-weight: 500;">Barang Terjual</div>
+        <div class="kpi-value" style="font-size: 26px; font-weight: 700; color: var(--navy); margin: 3px 0 6px;">126</div>
+        <div class="d-flex align-center gap-6" style="font-size: 12px; color: #1E9E62; font-weight: 600;">
+            <?= icon('arrow-up', 14, '', '#1E9E62') ?>
             <span>15% dari kemarin</span>
         </div>
     </div>
 
     <!-- Card 4: Stok Menipis -->
-    <div class="kpi-card" style="background: #F8FAFC; border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px;">
-        <div class="kpi-icon-wrap" style="background: #EFF6FF; color: var(--blue); width: 36px; height: 36px; margin-bottom: 8px;">
-            <?= icon('alert-circle', 18) ?>
+    <div class="kpi-card" style="background: #F0E9FF; border-radius: 14px; padding: 20px 22px; border: none; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+        <div class="kpi-icon-wrap" style="background: #8B5CF6; color: #fff; width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 12px;">
+            <?= icon('stok', 22, '', '#fff') ?>
         </div>
-        <div class="kpi-label" style="font-size: 13px; color: var(--slate); font-weight: 500;">Stok Menipis</div>
-        <div class="kpi-value" style="font-size: 24px; font-weight: 700; color: var(--navy); margin: 2px 0 6px;">3</div>
-        <div class="fs-12 text-slate fw-500">perlu restock</div>
+        <div class="kpi-label" style="font-size: 13.5px; color: var(--slate); font-weight: 500;">Stok Menipis</div>
+        <div class="kpi-value" style="font-size: 26px; font-weight: 700; color: var(--navy); margin: 3px 0 6px;">3</div>
+        <div class="fs-12 fw-500" style="color: #8B5CF6;">perlu restock</div>
     </div>
 </div>
 
 <!-- Main Grid Baris 1: Grafik Penjualan 7 Hari (Kiri) & Barang Terlaris (Kanan) -->
 <div style="display: grid; grid-template-columns: 2fr 1.2fr; gap: 20px; margin-bottom: 24px;">
     
-    <!-- Kolom Kiri: Grafik Penjualan -->
-    <div class="card" style="border-radius: 14px; padding: 22px;">
+    <!-- Kolom Kiri: Grafik Penjualan Sesuai Mockup SVG #02 -->
+    <div class="card" style="border-radius: 14px; padding: 22px; border: 1px solid #EAF0F6;">
         <div class="d-flex justify-between align-center" style="margin-bottom: 20px;">
-            <div>
-                <h3 class="card-title" style="margin: 0; font-size: 16px; font-weight: 700; color: var(--navy);">Grafik Penjualan</h3>
-                <span class="fs-12 text-muted">(7 Hari Terakhir)</span>
+            <div class="d-flex align-center gap-6">
+                <h3 class="card-title" style="margin: 0; font-size: 18px; font-weight: 700; color: #21324F;">Grafik Penjualan</h3>
+                <span class="fs-14" style="color: #51617A;">(7 Hari Terakhir)</span>
             </div>
-            <span class="badge badge-blue" style="font-size: 11px; padding: 2px 8px; border-radius: 4px;">Jumlah Transaksi</span>
+            <div style="display: flex; align-items: center; gap: 6px; padding: 6px 12px; border: 1px solid #D7E3F1; border-radius: 8px; font-size: 13px; font-weight: 500; color: #21324F; background: #fff; cursor: default;">
+                <span>Jumlah Transaksi</span>
+                <?= icon('chevron-down', 14, 'text-muted') ?>
+            </div>
         </div>
 
         <div style="display: flex; gap: 14px; height: 210px; align-items: flex-end; padding-bottom: 28px; position: relative;">
@@ -188,7 +191,7 @@ admin_page_start('Dashboard', 'dashboard');
             <div style="display: flex; width: 100%; height: 100%; align-items: flex-end; justify-content: space-around; z-index: 1;">
                 <?php foreach ($chartWeeklyTrx as $bar): 
                     $heightPercent = (int) round(($bar['val'] / $maxTrxScale) * 100);
-                    $barBg = $bar['active'] ? 'var(--blue)' : '#BFDBFE';
+                    $barBg = $bar['active'] ? '#1677F8' : '#BFDBFE';
                 ?>
                     <div style="display: flex; flex-direction: column; align-items: center; gap: 8px; flex: 1; max-width: 44px; height: 100%; justify-content: flex-end;" title="<?= e($bar['label']) ?>: <?= $bar['val'] ?> transaksi">
                         <div style="width: 100%; height: <?= $heightPercent ?>%; background: <?= $barBg ?>; border-radius: 6px 6px 0 0; transition: height 0.3s ease;"></div>
@@ -199,11 +202,16 @@ admin_page_start('Dashboard', 'dashboard');
         </div>
     </div>
 
-    <!-- Kolom Kanan: Barang Terlaris Hari Ini -->
-    <div class="card" style="border-radius: 14px; padding: 22px;">
+    <!-- Kolom Kanan: Barang Terlaris Hari Ini Sesuai Mockup SVG #02 -->
+    <div class="card" style="border-radius: 14px; padding: 22px; border: 1px solid #EAF0F6;">
         <div class="d-flex justify-between align-center" style="margin-bottom: 18px;">
-            <h3 class="card-title" style="margin: 0; font-size: 16px; font-weight: 700; color: var(--navy);">Barang Terlaris</h3>
-            <span class="badge badge-blue" style="font-size: 11px; padding: 2px 8px; border-radius: 4px;">Hari ini</span>
+            <div class="d-flex align-center gap-8">
+                <span style="color: #F3A827; display: flex; align-items: center;">
+                    <?= icon('star', 20, '', '#F3A827') ?>
+                </span>
+                <h3 class="card-title" style="margin: 0; font-size: 16px; font-weight: 700; color: #21324F;">Barang Terlaris</h3>
+            </div>
+            <span class="badge badge-blue" style="font-size: 11px; padding: 3px 8px; border-radius: 6px;">Hari ini</span>
         </div>
 
         <div style="display: flex; flex-direction: column; gap: 12px;">
@@ -219,7 +227,7 @@ admin_page_start('Dashboard', 'dashboard');
                         </div>
                     </div>
                     <div style="width: 80px; height: 6px; background: #F1F5F9; border-radius: 999px; overflow: hidden;">
-                        <div style="height: 100%; width: <?= $bs['percent'] ?>%; background: var(--blue); border-radius: 999px;"></div>
+                        <div style="height: 100%; width: <?= $bs['percent'] ?>%; background: #1677F8; border-radius: 999px;"></div>
                     </div>
                 </div>
             <?php endforeach; ?>
@@ -231,12 +239,10 @@ admin_page_start('Dashboard', 'dashboard');
 <!-- Main Grid Baris 2: Transaksi Terbaru (Kiri) & Status Stok (Kanan) -->
 <div style="display: grid; grid-template-columns: 2fr 1.2fr; gap: 20px;">
     
-    <!-- Kolom Kiri: Transaksi Terbaru -->
-    <div class="card" style="border-radius: 14px; padding: 22px;">
+    <!-- Kolom Kiri: Transaksi Terbaru Sesuai Mockup SVG #02 -->
+    <div class="card" style="border-radius: 14px; padding: 22px; border: 1px solid #EAF0F6;">
         <div class="d-flex justify-between align-center" style="margin-bottom: 18px;">
-            <div>
-                <h3 class="card-title" style="margin: 0; font-size: 16px; font-weight: 700; color: var(--navy);">Transaksi Terbaru</h3>
-            </div>
+            <h3 class="card-title" style="margin: 0; font-size: 16px; font-weight: 700; color: #21324F;">Transaksi Terbaru</h3>
             <a href="transaksi.php" class="fs-13 fw-600 text-blue">Lihat Semua &rarr;</a>
         </div>
 
@@ -253,8 +259,12 @@ admin_page_start('Dashboard', 'dashboard');
                 <tbody>
                     <?php foreach ($recentTransactions as $rx): 
                         $status = $rx['status'];
-                        $badgeCls = ($status === 'paid') ? 'badge-success' : (($status === 'pending') ? 'badge-warning' : 'badge-danger');
-                        $statusTxt = ($status === 'paid') ? 'Lunas' : (($status === 'pending') ? 'Menunggu' : 'Batal');
+                        $isPaid = ($status === 'paid');
+                        $isPending = ($status === 'pending');
+                        
+                        $badgeBg = $isPaid ? '#E7F8EF' : ($isPending ? '#FFF2DD' : '#FFECEC');
+                        $badgeColor = $isPaid ? '#1E9E62' : ($isPending ? '#C77700' : '#E5484D');
+                        $statusTxt = $isPaid ? 'Lunas' : ($isPending ? 'Menunggu' : 'Batal');
                     ?>
                         <tr>
                             <td style="padding-left: 14px;">
@@ -264,7 +274,7 @@ admin_page_start('Dashboard', 'dashboard');
                             <td class="fs-13 text-slate"><?= e($rx['items']) ?></td>
                             <td class="fs-13 fw-700 text-navy"><?= rupiah($rx['total']) ?></td>
                             <td style="text-align: right; padding-right: 14px;">
-                                <span class="badge <?= $badgeCls ?>" style="font-size: 11px; padding: 2px 8px; border-radius: 4px;">
+                                <span class="badge" style="background: <?= $badgeBg ?>; color: <?= $badgeColor ?>; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 11px;">
                                     <?= e($statusTxt) ?>
                                 </span>
                             </td>
@@ -275,12 +285,10 @@ admin_page_start('Dashboard', 'dashboard');
         </div>
     </div>
 
-    <!-- Kolom Kanan: Status Stok -->
-    <div class="card" style="border-radius: 14px; padding: 22px;">
+    <!-- Kolom Kanan: Status Stok Sesuai Mockup SVG #02 -->
+    <div class="card" style="border-radius: 14px; padding: 22px; border: 1px solid #EAF0F6;">
         <div class="d-flex justify-between align-center" style="margin-bottom: 18px;">
-            <div>
-                <h3 class="card-title" style="margin: 0; font-size: 16px; font-weight: 700; color: var(--navy);">Status Stok</h3>
-            </div>
+            <h3 class="card-title" style="margin: 0; font-size: 16px; font-weight: 700; color: #21324F;">Status Stok</h3>
             <a href="stok.php" class="fs-13 fw-600 text-blue">Lihat Semua &rarr;</a>
         </div>
 
@@ -299,8 +307,10 @@ admin_page_start('Dashboard', 'dashboard');
                         $bts = (int) ($sp['batas'] ?? 5);
                         $isMenipis = ($stk <= $bts && $stk > 0);
                         $isHabis = ($stk <= 0);
-                        $badge = $isHabis ? 'badge-danger' : ($isMenipis ? 'badge-warning' : 'badge-success');
-                        $statusTxt = $isHabis ? 'Habis' : ($isMenipis ? 'Menipis' : 'Aman');
+                        
+                        $badgeBg = ($isHabis || $isMenipis) ? '#FFF2DD' : '#E7F8EF';
+                        $badgeColor = ($isHabis || $isMenipis) ? '#C77700' : '#1E9E62';
+                        $statusTxt = ($isHabis || $isMenipis) ? 'Menipis' : 'Aman';
                     ?>
                         <tr>
                             <td style="padding-left: 14px;">
@@ -315,7 +325,7 @@ admin_page_start('Dashboard', 'dashboard');
                                 <?= $stk ?> pcs
                             </td>
                             <td style="text-align: right; padding-right: 14px;">
-                                <span class="badge <?= $badge ?>" style="font-size: 11px; padding: 2px 8px; border-radius: 4px;">
+                                <span class="badge" style="background: <?= $badgeBg ?>; color: <?= $badgeColor ?>; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 11px;">
                                     <?= e($statusTxt) ?>
                                 </span>
                             </td>

@@ -6,7 +6,7 @@ auth_guard();
 
 $statusFilter = strtolower(trim((string) ($_GET['status'] ?? 'semua')));
 $searchQuery = trim((string) ($_GET['q'] ?? ''));
-$currentPage = max(1, (int) ($_GET['page'] ?? 1));
+$forceEmpty = isset($_GET['empty']) && $_GET['empty'] === '1';
 
 // Data 10 transaksi mockup agar presisi 100% dengan Mockup SVG #04 Transaksi Admin
 $mockupOrdersList = [
@@ -59,7 +59,7 @@ $mockupOrdersList = [
         'qty' => 1,
         'total' => 3000,
         'status' => 'cancelled', // Batal
-        'alasan_batal' => 'Kedaluwarsa', // R-10, R-11, R-12
+        'alasan_batal' => 'Kedaluwarsa',
         'ref' => 'QR2411-3F9A7C',
         'status_label' => 'Batal',
     ],
@@ -184,9 +184,11 @@ $mockupOrdersList = [
     ],
 ];
 
-// Terapkan filter jika ada
-$displayedOrders = $mockupOrdersList;
-if ($statusFilter !== 'semua' && $statusFilter !== '') {
+// Jika parameter empty diset, kosongkan daftar transaksi untuk meniru Mockup #05
+$displayedOrders = $forceEmpty ? [] : $mockupOrdersList;
+
+// Terapkan filter status
+if (!$forceEmpty && $statusFilter !== 'semua' && $statusFilter !== '') {
     $displayedOrders = array_values(array_filter($displayedOrders, function ($o) use ($statusFilter) {
         if ($statusFilter === 'lunas') return $o['status'] === 'paid';
         if ($statusFilter === 'menunggu') return $o['status'] === 'pending';
@@ -195,7 +197,8 @@ if ($statusFilter !== 'semua' && $statusFilter !== '') {
     }));
 }
 
-if ($searchQuery !== '') {
+// Terapkan pencarian
+if (!$forceEmpty && $searchQuery !== '') {
     $qLower = strtolower($searchQuery);
     $displayedOrders = array_values(array_filter($displayedOrders, function ($o) use ($qLower) {
         if (str_contains(strtolower($o['trx']), $qLower)) return true;
@@ -207,40 +210,42 @@ if ($searchQuery !== '') {
     }));
 }
 
-// KPI stats sesuai mockup SVG #04: Total Rp 428.000, Jml 38, Menunggu 1
+// KPI stats sesuai Mockup SVG #04 (atau #05 saat kosong)
 $stats = [
-    'total_penjualan_hari_ini' => 428000,
-    'jumlah_trx_hari_ini'      => 38,
-    'menunggu_hari_ini'        => 1,
+    'total_penjualan_hari_ini' => $forceEmpty ? 0 : 428000,
+    'jumlah_trx_hari_ini'      => $forceEmpty ? 0 : 38,
+    'menunggu_hari_ini'        => $forceEmpty ? 0 : 1,
 ];
 
 // Transaksi terpilih untuk detail panel
 $selectedTrxId = $_GET['trx'] ?? null;
 $defaultDetailOrder = null;
-if ($selectedTrxId) {
-    foreach ($mockupOrdersList as $o) {
-        if ($o['trx'] === $selectedTrxId || (string)$o['id'] === $selectedTrxId) {
-            $defaultDetailOrder = $o;
-            break;
+if (!$forceEmpty) {
+    if ($selectedTrxId) {
+        foreach ($mockupOrdersList as $o) {
+            if ($o['trx'] === $selectedTrxId || (string)$o['id'] === $selectedTrxId) {
+                $defaultDetailOrder = $o;
+                break;
+            }
         }
     }
-}
-if (!$defaultDetailOrder) {
-    foreach ($mockupOrdersList as $o) {
-        if ($o['trx'] === '#TRX037') {
-            $defaultDetailOrder = $o;
-            break;
+    if (!$defaultDetailOrder) {
+        foreach ($mockupOrdersList as $o) {
+            if ($o['trx'] === '#TRX037') {
+                $defaultDetailOrder = $o;
+                break;
+            }
         }
     }
-}
-if (!$defaultDetailOrder && !empty($displayedOrders)) {
-    $defaultDetailOrder = $displayedOrders[0];
+    if (!$defaultDetailOrder && !empty($displayedOrders)) {
+        $defaultDetailOrder = $displayedOrders[0];
+    }
 }
 
 admin_page_start('Transaksi', 'transaksi');
 ?>
 
-<!-- Header Desktop: Judul & Subtitle di Kiri, Tanggal di Kanan Sesuai Mockup SVG -->
+<!-- Header Desktop: Judul & Subtitle di Kiri, Tanggal di Kanan Sesuai Mockup SVG #04 -->
 <div class="page-header-desktop">
     <div class="d-flex justify-between align-center" style="flex-wrap: wrap; gap: 16px;">
         <div>
@@ -262,7 +267,7 @@ admin_page_start('Transaksi', 'transaksi');
     </div>
 </div>
 
-<!-- Layout Utama 2 Kolom Desktop (Kiri: KPI & Tabel, Kanan: Detail Transaksi) -->
+<!-- Layout Utama 2 Kolom Desktop (Kiri: KPI & Tabel, Kanan: Detail Transaksi) Sesuai Mockup SVG #04 -->
 <div class="trx-desktop-layout">
     
     <!-- ============================================================= -->
@@ -272,35 +277,41 @@ admin_page_start('Transaksi', 'transaksi');
         <!-- 3 KPI Cards Ringkasan Sesuai Mockup SVG #04 -->
         <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 20px;">
             <!-- Card 1: Total Hari Ini -->
-            <div class="kpi-card" style="background: #E5F0FF; border-radius: 12px; padding: 16px 18px;">
-                <div class="kpi-icon-wrap" style="background: #DBEAFE; color: var(--blue); width: 36px; height: 36px; margin-bottom: 6px;">
-                    <?= icon('wallet', 18) ?>
+            <div class="kpi-card" style="background: #E5F0FF; border-radius: 14px; padding: 20px 22px; border: none;">
+                <div class="kpi-icon-wrap" style="background: #1677F8; color: #fff; width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 10px;">
+                    <?= icon('wallet', 22, '', '#fff') ?>
                 </div>
-                <div class="kpi-label" style="font-size: 13px; color: var(--slate); font-weight: 500;">Total Hari Ini</div>
-                <div class="kpi-value" style="font-size: 22px; font-weight: 700; color: var(--navy);"><?= rupiah($stats['total_penjualan_hari_ini']) ?></div>
+                <div class="kpi-label" style="font-size: 13.5px; color: var(--slate); font-weight: 500;">Total Hari Ini</div>
+                <div class="kpi-value" style="font-size: 24px; font-weight: 700; color: var(--navy); margin-top: 2px;">
+                    <?= rupiah($stats['total_penjualan_hari_ini']) ?>
+                </div>
             </div>
 
             <!-- Card 2: Jumlah Transaksi -->
-            <div class="kpi-card" style="background: #E7F8EF; border-radius: 12px; padding: 16px 18px;">
-                <div class="kpi-icon-wrap" style="background: #D1F2DF; color: var(--green); width: 36px; height: 36px; margin-bottom: 6px;">
-                    <?= icon('check', 18) ?>
+            <div class="kpi-card" style="background: #E7F8EF; border-radius: 14px; padding: 20px 22px; border: none;">
+                <div class="kpi-icon-wrap" style="background: #35B679; color: #fff; width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 10px;">
+                    <?= icon('receipt-card', 22, '', '#fff') ?>
                 </div>
-                <div class="kpi-label" style="font-size: 13px; color: var(--slate); font-weight: 500;">Jumlah Transaksi</div>
-                <div class="kpi-value" style="font-size: 22px; font-weight: 700; color: var(--navy);"><?= $stats['jumlah_trx_hari_ini'] ?></div>
+                <div class="kpi-label" style="font-size: 13.5px; color: var(--slate); font-weight: 500;">Jumlah Transaksi</div>
+                <div class="kpi-value" style="font-size: 24px; font-weight: 700; color: var(--navy); margin-top: 2px;">
+                    <?= $stats['jumlah_trx_hari_ini'] ?>
+                </div>
             </div>
 
             <!-- Card 3: Menunggu Pembayaran -->
-            <div class="kpi-card" style="background: #FFF2DD; border-radius: 12px; padding: 16px 18px;">
-                <div class="kpi-icon-wrap" style="background: #FEE8C8; color: var(--amber); width: 36px; height: 36px; margin-bottom: 6px;">
-                    <?= icon('clock', 18) ?>
+            <div class="kpi-card" style="background: #FFF2DD; border-radius: 14px; padding: 20px 22px; border: none;">
+                <div class="kpi-icon-wrap" style="background: #F3A827; color: #fff; width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 10px;">
+                    <?= icon('clock', 22, '', '#fff') ?>
                 </div>
-                <div class="kpi-label" style="font-size: 13px; color: var(--slate); font-weight: 500;">Menunggu Pembayaran</div>
-                <div class="kpi-value" style="font-size: 22px; font-weight: 700; color: var(--navy);"><?= $stats['menunggu_hari_ini'] ?></div>
+                <div class="kpi-label" style="font-size: 13.5px; color: var(--slate); font-weight: 500;">Menunggu Pembayaran</div>
+                <div class="kpi-value" style="font-size: 24px; font-weight: 700; color: var(--navy); margin-top: 2px;">
+                    <?= $stats['menunggu_hari_ini'] ?>
+                </div>
             </div>
         </div>
 
         <!-- Card Wrapper untuk Pencarian, Filter Status & Tabel Transaksi -->
-        <div class="card" style="border-radius: 14px; padding: 22px;">
+        <div class="card" style="border-radius: 14px; padding: 22px; border: 1px solid #EAF0F6;">
             
             <!-- Toolbar Filter Sesuai Mockup SVG: Search, Hari Ini Dropdown, Status Chips -->
             <div class="d-flex justify-between align-center" style="flex-wrap: wrap; gap: 12px; margin-bottom: 20px;">
@@ -312,7 +323,7 @@ admin_page_start('Transaksi', 'transaksi');
                             <input type="hidden" name="status" value="<?= e($statusFilter) ?>">
                         <?php endif; ?>
                         <div class="input-icon-wrap flex-1" style="position: relative;">
-                            <span class="input-icon-left" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--grey);">
+                            <span class="input-icon-left" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #8E9CAB;">
                                 <?= icon('search', 16) ?>
                             </span>
                             <input type="text" name="q" class="form-control" style="height: 38px; padding-left: 36px; font-size: 13.5px; border-radius: 8px; border: 1px solid var(--line);" placeholder="Cari ID atau barang" value="<?= e($searchQuery) ?>">
@@ -320,7 +331,7 @@ admin_page_start('Transaksi', 'transaksi');
                     </form>
 
                     <!-- Dropdown Hari Ini -->
-                    <div style="background: #fff; border: 1px solid var(--line); border-radius: 8px; height: 38px; padding: 0 12px; display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; color: var(--slate); flex-shrink: 0; cursor: pointer;">
+                    <div style="background: #fff; border: 1px solid var(--line); border-radius: 8px; height: 38px; padding: 0 12px; display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; color: #21324F; flex-shrink: 0; cursor: pointer;">
                         <span>Hari ini</span>
                         <?= icon('chevron-down', 14, 'text-muted') ?>
                     </div>
@@ -348,14 +359,31 @@ admin_page_start('Transaksi', 'transaksi');
 
             </div>
 
-            <!-- Tabel Transaksi Desktop / Empty State Sesuai Mockup SVG #05 -->
+            <!-- Tabel Transaksi Desktop / Empty State Sesuai Mockup SVG #04 & #05 -->
             <?php if (empty($displayedOrders)): ?>
-                <div class="empty-state" style="padding: 48px 20px; text-align: center;">
-                    <div class="empty-icon-wrap" style="width: 56px; height: 56px; border-radius: 50%; background: #F1F5F9; color: var(--slate); display: flex; align-items: center; justify-content: center; margin: 0 auto 14px;">
-                        <?= icon('transaksi', 28) ?>
+                <!-- Tampilan Empty State Sesuai Mockup SVG #05 Transaksi Kosong -->
+                <div class="table-responsive desktop-table-wrap">
+                    <table class="data-table">
+                        <thead>
+                            <tr class="table-header-mockup">
+                                <th style="padding-left: 14px;">No.</th>
+                                <th>ID</th>
+                                <th>Waktu</th>
+                                <th>Barang</th>
+                                <th>Jml</th>
+                                <th>Total</th>
+                                <th style="text-align: right; padding-right: 14px;">Status</th>
+                            </tr>
+                        </thead>
+                    </table>
+                </div>
+
+                <div class="empty-state" style="padding: 60px 20px; text-align: center;">
+                    <div class="empty-icon-wrap" style="width: 64px; height: 64px; border-radius: 50%; background: #F5F9FD; color: #8E9CAB; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px;">
+                        <?= icon('transaksi', 32, '', '#8E9CAB') ?>
                     </div>
-                    <div class="fw-700 fs-16 text-navy" style="margin-bottom: 4px;">Belum ada transaksi</div>
-                    <div class="fs-13 text-slate">Transaksi pelanggan akan muncul di sini.</div>
+                    <div class="fw-700 fs-16" style="color: #21324F; margin-bottom: 6px;">Belum ada transaksi</div>
+                    <div class="fs-13" style="color: #8E9CAB;">Transaksi pelanggan akan muncul di sini.</div>
                 </div>
             <?php else: ?>
                 <div class="table-responsive desktop-table-wrap">
@@ -373,9 +401,13 @@ admin_page_start('Transaksi', 'transaksi');
                         </thead>
                         <tbody>
                             <?php foreach ($displayedOrders as $idx => $o): 
-                                $isBatal = in_array($o['status'], ['cancelled', 'expired', 'failed'], true);
-                                $badgeCls = ($o['status'] === 'paid') ? 'badge-success' : (($o['status'] === 'pending') ? 'badge-warning' : 'badge-danger');
-                                $statusLabel = ($o['status'] === 'paid') ? 'Lunas' : (($o['status'] === 'pending') ? 'Menunggu' : 'Batal');
+                                $isPaid = ($o['status'] === 'paid');
+                                $isPending = ($o['status'] === 'pending');
+                                
+                                $badgeBg = $isPaid ? '#E7F8EF' : ($isPending ? '#FFF2DD' : '#FFECEC');
+                                $badgeColor = $isPaid ? '#1E9E62' : ($isPending ? '#C77700' : '#E5484D');
+                                $statusLabel = $isPaid ? 'Lunas' : ($isPending ? 'Menunggu' : 'Batal');
+                                
                                 $isSelected = ($defaultDetailOrder && $defaultDetailOrder['trx'] === $o['trx']);
                                 $orderJson = htmlspecialchars(json_encode($o), ENT_QUOTES, 'UTF-8');
                             ?>
@@ -390,7 +422,7 @@ admin_page_start('Transaksi', 'transaksi');
                                     <td class="fs-13 text-slate"><?= $o['qty'] ?></td>
                                     <td class="fw-700 fs-13 text-navy"><?= rupiah($o['total']) ?></td>
                                     <td style="text-align: right; padding-right: 14px;">
-                                        <span class="badge <?= $badgeCls ?>" style="font-size: 11.5px; padding: 2px 8px; border-radius: 4px;">
+                                        <span class="badge" style="background: <?= $badgeBg ?>; color: <?= $badgeColor ?>; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 12px;">
                                             <?= e($statusLabel) ?>
                                         </span>
                                     </td>
@@ -403,8 +435,11 @@ admin_page_start('Transaksi', 'transaksi');
                 <!-- Card List Mobile -->
                 <div class="mobile-only-orders-list">
                     <?php foreach ($displayedOrders as $o): 
-                        $badgeCls = ($o['status'] === 'paid') ? 'badge-success' : (($o['status'] === 'pending') ? 'badge-warning' : 'badge-danger');
-                        $statusLabel = ($o['status'] === 'paid') ? 'Lunas' : (($o['status'] === 'pending') ? 'Menunggu' : 'Batal');
+                        $isPaid = ($o['status'] === 'paid');
+                        $isPending = ($o['status'] === 'pending');
+                        $badgeBg = $isPaid ? '#E7F8EF' : ($isPending ? '#FFF2DD' : '#FFECEC');
+                        $badgeColor = $isPaid ? '#1E9E62' : ($isPending ? '#C77700' : '#E5484D');
+                        $statusLabel = $isPaid ? 'Lunas' : ($isPending ? 'Menunggu' : 'Batal');
                         $orderJson = htmlspecialchars(json_encode($o), ENT_QUOTES, 'UTF-8');
                     ?>
                         <div class="order-mobile-card" data-order='<?= $orderJson ?>' onclick="openMobileOrderDetail(this)" style="cursor: pointer; padding: 14px; border: 1px solid var(--line); border-radius: 10px; margin-bottom: 10px; background: #fff;">
@@ -416,7 +451,7 @@ admin_page_start('Transaksi', 'transaksi');
                                 <div class="fs-13 text-slate" style="margin: 2px 0;"><?= e($o['items_summary_mobile']) ?></div>
                                 <div class="d-flex justify-between align-center">
                                     <span class="fs-12 text-muted">QRIS · <?= e($o['waktu']) ?></span>
-                                    <span class="badge <?= $badgeCls ?>" style="font-size: 11px; padding: 2px 8px;"><?= e($statusLabel) ?></span>
+                                    <span class="badge" style="background: <?= $badgeBg ?>; color: <?= $badgeColor ?>; font-size: 11px; padding: 2px 8px; border-radius: 10px;"><?= e($statusLabel) ?></span>
                                 </div>
                             </div>
                         </div>
@@ -443,63 +478,68 @@ admin_page_start('Transaksi', 'transaksi');
     <!-- ============================================================= -->
     <!-- KOLOM KANAN: Panel Detail Transaksi Desktop                   -->
     <!-- ============================================================= -->
-    <div class="card" id="desktopDetailPanel" style="position: sticky; top: 20px; border-radius: 14px; padding: 22px; height: fit-content;">
+    <div class="card" id="desktopDetailPanel" style="position: sticky; top: 20px; border-radius: 14px; padding: 22px; height: fit-content; border: 1px solid #EAF0F6;">
         <div class="d-flex justify-between align-center" style="margin-bottom: 20px;">
-            <h3 class="card-title" style="margin: 0; font-size: 18px; font-weight: 700; color: var(--navy);">Detail Transaksi</h3>
+            <h3 class="card-title" style="margin: 0; font-size: 19px; font-weight: 700; color: #21324F;">Detail Transaksi</h3>
+            <button type="button" class="btn-clear-detail" onclick="clearDetailPanel()" style="background: none; border: none; cursor: pointer; color: #8E9CAB; padding: 4px; display: flex; align-items: center;" title="Tutup Detail">
+                <?= icon('x', 18) ?>
+            </button>
         </div>
         
         <div id="desktopDetailContent">
             <?php if ($defaultDetailOrder): 
                 $dStatus = $defaultDetailOrder['status'];
-                $sHeroBg = ($dStatus === 'paid') ? '#E7F8EF' : (($dStatus === 'pending') ? '#FFF2DD' : '#FFECEC');
-                $sHeroColor = ($dStatus === 'paid') ? '#1E9E62' : (($dStatus === 'pending') ? '#C77700' : '#E5484D');
-                $sHeroText = ($dStatus === 'paid') ? 'Pembayaran Lunas' : (($dStatus === 'pending') ? 'Menunggu Pembayaran' : 'Pembayaran Batal');
+                $isPaid = ($dStatus === 'paid');
+                $isPending = ($dStatus === 'pending');
+                $sHeroBg = $isPaid ? '#E7F8EF' : ($isPending ? '#FFF2DD' : '#FFECEC');
+                $sHeroColor = $isPaid ? '#1E9E62' : ($isPending ? '#C77700' : '#E5484D');
+                $sHeroText = $isPaid ? 'Pembayaran Lunas' : ($isPending ? 'Menunggu Pembayaran' : 'Pembayaran Batal');
                 $alasanBatal = $defaultDetailOrder['alasan_batal'] ?? 'Kedaluwarsa';
             ?>
                 <!-- Hero Status Box Sesuai Mockup SVG #04 -->
                 <div style="text-align: center; padding: 22px 16px; background: <?= $sHeroBg ?>; border-radius: 12px; margin-bottom: 22px;">
                     <div style="width: 44px; height: 44px; background: #fff; color: <?= $sHeroColor ?>; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.06);">
-                        <?php if ($dStatus === 'paid'): ?>
+                        <?php if ($isPaid): ?>
                             <?= icon('check', 22) ?>
-                        <?php elseif ($dStatus === 'pending'): ?>
+                        <?php elseif ($isPending): ?>
                             <?= icon('clock', 22) ?>
                         <?php else: ?>
                             <?= icon('x', 22) ?>
                         <?php endif; ?>
                     </div>
                     <div class="fs-14 fw-600" style="color: <?= $sHeroColor ?>; margin-bottom: 4px;"><?= $sHeroText ?></div>
-                    <div class="fs-28 fw-700 text-navy" style="margin-bottom: 4px;"><?= rupiah($defaultDetailOrder['total']) ?></div>
-                    <div class="fs-12 text-slate"><?= date('d M Y', $defaultDetailOrder['dibuat']) ?> · <?= e($defaultDetailOrder['waktu']) ?></div>
-                    <?php if ($dStatus !== 'paid' && $dStatus !== 'pending'): ?>
+                    <div class="fs-28 fw-700" style="color: #21324F; margin-bottom: 4px;"><?= rupiah($defaultDetailOrder['total']) ?></div>
+                    <div class="fs-12" style="color: #51617A;"><?= date('d M Y', $defaultDetailOrder['dibuat']) ?> · <?= e($defaultDetailOrder['waktu']) ?></div>
+                    <?php if (!$isPaid && !$isPending): ?>
                         <div class="fs-11 fw-600 text-red" style="margin-top: 4px;">Alasan: <?= e($alasanBatal) ?></div>
                     <?php endif; ?>
                 </div>
 
-                <!-- Info Kunci Transaksi -->
+                <!-- Info Kunci Transaksi Sesuai Mockup SVG #04 -->
                 <div style="display: flex; flex-direction: column; gap: 12px; font-size: 13.5px; margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px dashed var(--line);">
                     <div class="d-flex justify-between">
-                        <span class="text-slate">No. Transaksi</span>
-                        <span class="fw-700 text-navy"><?= e($defaultDetailOrder['trx']) ?></span>
+                        <span style="color: #51617A;">No. Transaksi</span>
+                        <span class="fw-700" style="color: #21324F;"><?= e($defaultDetailOrder['trx']) ?></span>
                     </div>
                     <div class="d-flex justify-between">
-                        <span class="text-slate">Metode</span>
-                        <span class="fw-600 text-navy">QRIS</span>
+                        <span style="color: #51617A;">Metode</span>
+                        <span class="fw-600" style="color: #21324F;">QRIS</span>
                     </div>
                     <div class="d-flex justify-between">
-                        <span class="text-slate">Ref. QRIS</span>
-                        <span class="font-mono text-slate fw-600 fs-12"><?= e($defaultDetailOrder['ref']) ?></span>
+                        <span style="color: #51617A;">Ref. QRIS</span>
+                        <span class="font-mono fw-600 fs-12" style="color: #51617A;"><?= e($defaultDetailOrder['ref']) ?></span>
                     </div>
                     <div class="d-flex justify-between">
-                        <span class="text-slate">Status</span>
-                        <span class="badge <?= ($dStatus === 'paid') ? 'badge-success' : (($dStatus === 'pending') ? 'badge-warning' : 'badge-danger') ?>" style="font-size: 11.5px; padding: 2px 8px; border-radius: 4px;">
-                            <?= ($dStatus === 'paid') ? 'Lunas' : (($dStatus === 'pending') ? 'Menunggu' : 'Batal') ?>
+                        <span style="color: #51617A;">Status</span>
+                        <span class="badge" style="background: <?= $sHeroBg ?>; color: <?= $sHeroColor ?>; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 12px;">
+                            <?= $isPaid ? 'Lunas' : ($isPending ? 'Menunggu' : 'Batal') ?>
                         </span>
                     </div>
                 </div>
 
-                <!-- Rincian Barang -->
+                <!-- Rincian Barang Sesuai Mockup SVG #04 -->
                 <div>
-                    <div class="fs-13 fw-700 text-navy" style="margin-bottom: 14px;">Rincian Barang</div>
+                    <div class="fs-13 fw-700" style="color: #21324F; margin-bottom: 14px;">Rincian Barang</div>
                     <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 18px;">
                         <?php foreach ($defaultDetailOrder['items'] as $item): ?>
                             <div class="d-flex justify-between align-center">
@@ -508,30 +548,30 @@ admin_page_start('Transaksi', 'transaksi');
                                         <img src="assets/img/<?= e($item['gambar']) ?>" alt="<?= e($item['nama']) ?>" style="width: 26px; height: 26px; object-fit: contain;">
                                     </div>
                                     <div>
-                                        <div class="fw-600 fs-13 text-navy"><?= e($item['nama']) ?></div>
+                                        <div class="fw-600 fs-13" style="color: #21324F;"><?= e($item['nama']) ?></div>
                                         <div class="fs-11 text-muted"><?= $item['qty'] ?> × <?= rupiah($item['harga']) ?></div>
                                     </div>
                                 </div>
-                                <span class="fw-700 fs-13 text-navy"><?= rupiah($item['harga'] * $item['qty']) ?></span>
+                                <span class="fw-700 fs-13" style="color: #21324F;"><?= rupiah($item['harga'] * $item['qty']) ?></span>
                             </div>
                         <?php endforeach; ?>
                     </div>
 
                     <!-- Total Pembayaran -->
                     <div class="d-flex justify-between align-center" style="padding-top: 14px; border-top: 1px solid var(--line);">
-                        <span class="fw-700 fs-14 text-navy">Total Pembayaran</span>
-                        <span class="fw-700 fs-16 text-blue"><?= rupiah($defaultDetailOrder['total']) ?></span>
+                        <span class="fw-700 fs-14" style="color: #21324F;">Total Pembayaran</span>
+                        <span class="fw-700 fs-16" style="color: #1677F8;"><?= rupiah($defaultDetailOrder['total']) ?></span>
                     </div>
                 </div>
 
             <?php else: ?>
-                <!-- Empty State Kanan Sesuai Mockup SVG #05 -->
-                <div class="empty-state" style="padding: 48px 20px; text-align: center;">
-                    <div class="empty-icon-wrap" style="width: 48px; height: 48px; border-radius: 50%; background: #F1F5F9; color: var(--slate); display: flex; align-items: center; justify-content: center; margin: 0 auto 12px;">
-                        <?= icon('info', 24) ?>
+                <!-- Empty State Kanan Sesuai Mockup SVG #05 Transaksi Kosong -->
+                <div class="empty-state" style="padding: 80px 20px; text-align: center;">
+                    <div class="empty-icon-wrap" style="width: 64px; height: 64px; border-radius: 50%; background: #F5F9FD; color: #8E9CAB; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px;">
+                        <?= icon('transaksi', 32, '', '#8E9CAB') ?>
                     </div>
-                    <div class="fw-600 fs-15 text-navy" style="margin-bottom: 4px;">Pilih transaksi</div>
-                    <div class="fs-13 text-slate">Pilih salah satu transaksi untuk melihat detailnya.</div>
+                    <div class="fw-700 fs-16" style="color: #21324F; margin-bottom: 4px;">Pilih transaksi</div>
+                    <div class="fs-13" style="color: #8E9CAB;">untuk melihat detailnya.</div>
                 </div>
             <?php endif; ?>
         </div>
@@ -567,6 +607,24 @@ function selectOrderRow(row) {
     renderDetailPanel(order);
 }
 
+function clearDetailPanel() {
+    document.querySelectorAll('.interactive-row').forEach(r => {
+        r.classList.remove('row-selected');
+        r.style.background = '';
+    });
+    const container = document.getElementById('desktopDetailContent');
+    if (!container) return;
+    container.innerHTML = `
+        <div class="empty-state" style="padding: 80px 20px; text-align: center;">
+            <div class="empty-icon-wrap" style="width: 64px; height: 64px; border-radius: 50%; background: #F5F9FD; color: #8E9CAB; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px;">
+                <svg class="icon" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#8E9CAB" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 2v20l2.5-1.5L10 22l2-1.5 2 1.5 2.5-1.5L19 22V2l-2.5 1.5L14 2l-2 1.5L10 2 7.5 3.5zM9 8h6M9 12h6M9 16h4"/></svg>
+            </div>
+            <div class="fw-700 fs-16" style="color: #21324F; margin-bottom: 4px;">Pilih transaksi</div>
+            <div class="fs-13" style="color: #8E9CAB;">untuk melihat detailnya.</div>
+        </div>
+    `;
+}
+
 function openMobileOrderDetail(el) {
     const order = JSON.parse(el.getAttribute('data-order'));
     const modalBody = document.getElementById('modalMobileDetailBody');
@@ -587,14 +645,13 @@ function buildDetailHtml(order) {
     const heroBg = isPaid ? '#E7F8EF' : (isPending ? '#FFF2DD' : '#FFECEC');
     const heroColor = isPaid ? '#1E9E62' : (isPending ? '#C77700' : '#E5484D');
     const heroText = isPaid ? 'Pembayaran Lunas' : (isPending ? 'Menunggu Pembayaran' : 'Pembayaran Batal');
-    const badgeCls = isPaid ? 'badge-success' : (isPending ? 'badge-warning' : 'badge-danger');
     const statusLabel = isPaid ? 'Lunas' : (isPending ? 'Menunggu' : 'Batal');
     
     let iconSvg = '';
     if (isPaid) {
         iconSvg = `<svg class="icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
     } else if (isPending) {
-        iconSvg = `<svg class="icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>`;
+        iconSvg = `<svg class="icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 6v6l4 2"/></svg>`;
     } else {
         iconSvg = `<svg class="icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>`;
     }
@@ -609,11 +666,11 @@ function buildDetailHtml(order) {
                         <img src="assets/img/${it.gambar}" alt="${it.nama}" style="width: 26px; height: 26px; object-fit: contain;">
                     </div>
                     <div>
-                        <div class="fw-600 fs-13 text-navy">${it.nama}</div>
+                        <div class="fw-600 fs-13" style="color: #21324F;">${it.nama}</div>
                         <div class="fs-11 text-muted">${it.qty} × Rp ${Number(it.harga).toLocaleString('id-ID')}</div>
                     </div>
                 </div>
-                <span class="fw-700 fs-13 text-navy">Rp ${Number(subtotal).toLocaleString('id-ID')}</span>
+                <span class="fw-700 fs-13" style="color: #21324F;">Rp ${Number(subtotal).toLocaleString('id-ID')}</span>
             </div>
         `;
     });
@@ -628,40 +685,40 @@ function buildDetailHtml(order) {
                 ${iconSvg}
             </div>
             <div class="fs-14 fw-600" style="color: ${heroColor}; margin-bottom: 4px;">${heroText}</div>
-            <div class="fs-28 fw-700 text-navy" style="margin-bottom: 4px;">Rp ${Number(order.total).toLocaleString('id-ID')}</div>
-            <div class="fs-12 text-slate">${order.waktu}</div>
+            <div class="fs-28 fw-700" style="color: #21324F; margin-bottom: 4px;">Rp ${Number(order.total).toLocaleString('id-ID')}</div>
+            <div class="fs-12" style="color: #51617A;">${order.waktu}</div>
             ${alasanHtml}
         </div>
 
         <div style="display: flex; flex-direction: column; gap: 12px; font-size: 13.5px; margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px dashed var(--line);">
             <div class="d-flex justify-between">
-                <span class="text-slate">No. Transaksi</span>
-                <span class="fw-700 text-navy">${order.trx}</span>
+                <span style="color: #51617A;">No. Transaksi</span>
+                <span class="fw-700" style="color: #21324F;">${order.trx}</span>
             </div>
             <div class="d-flex justify-between">
-                <span class="text-slate">Metode</span>
-                <span class="fw-600 text-navy">QRIS</span>
+                <span style="color: #51617A;">Metode</span>
+                <span class="fw-600" style="color: #21324F;">QRIS</span>
             </div>
             <div class="d-flex justify-between">
-                <span class="text-slate">Ref. QRIS</span>
-                <span class="font-mono text-slate fw-600 fs-12">${order.ref || '-'}</span>
+                <span style="color: #51617A;">Ref. QRIS</span>
+                <span class="font-mono fw-600 fs-12" style="color: #51617A;">${order.ref || '-'}</span>
             </div>
             <div class="d-flex justify-between">
-                <span class="text-slate">Status</span>
-                <span class="badge ${badgeCls}" style="font-size: 11.5px; padding: 2px 8px; border-radius: 4px;">
+                <span style="color: #51617A;">Status</span>
+                <span class="badge" style="background: ${heroBg}; color: ${heroColor}; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 12px;">
                     ${statusLabel}
                 </span>
             </div>
         </div>
 
         <div>
-            <div class="fs-13 fw-700 text-navy" style="margin-bottom: 14px;">Rincian Barang</div>
+            <div class="fs-13 fw-700" style="color: #21324F; margin-bottom: 14px;">Rincian Barang</div>
             <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 18px;">
                 ${itemsHtml}
             </div>
             <div class="d-flex justify-between align-center" style="padding-top: 14px; border-top: 1px solid var(--line);">
-                <span class="fw-700 fs-14 text-navy">Total Pembayaran</span>
-                <span class="fw-700 fs-16 text-blue">Rp ${Number(order.total).toLocaleString('id-ID')}</span>
+                <span class="fw-700 fs-14" style="color: #21324F;">Total Pembayaran</span>
+                <span class="fw-700 fs-16" style="color: #1677F8;">Rp ${Number(order.total).toLocaleString('id-ID')}</span>
             </div>
         </div>
     `;
