@@ -28,6 +28,11 @@ function admin_page_start(string $title, string $activeNav = 'dashboard', array 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/svg+xml" href="assets/img/favicon.svg">
+    <link rel="icon" type="image/png" sizes="32x32" href="assets/img/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="assets/img/favicon-16x16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="assets/img/apple-touch-icon.png">
+    <link rel="shortcut icon" href="favicon.ico">
     <link rel="stylesheet" href="assets/css/style.css">
 </head>
 <body>
@@ -55,10 +60,6 @@ function admin_page_start(string $title, string $activeNav = 'dashboard', array 
                 <?= icon('transaksi', 20) ?>
                 <span>Transaksi</span>
             </a>
-            <a href="penjualan.php" class="nav-link <?= $activeNav === 'penjualan' ? 'active' : '' ?>">
-                <?= icon('penjualan', 20) ?>
-                <span>Penjualan</span>
-            </a>
             <a href="barang.php" class="nav-link <?= $activeNav === 'barang' ? 'active' : '' ?>">
                 <?= icon('barang', 20) ?>
                 <span>Barang</span>
@@ -66,6 +67,10 @@ function admin_page_start(string $title, string $activeNav = 'dashboard', array 
             <a href="stok.php" class="nav-link <?= $activeNav === 'stok' ? 'active' : '' ?>">
                 <?= icon('stok', 20) ?>
                 <span>Stok</span>
+            </a>
+            <a href="penitip.php" class="nav-link <?= $activeNav === 'penitip' ? 'active' : '' ?>">
+                <?= icon('penitip', 20) ?>
+                <span>Penitip</span>
             </a>
             <a href="laporan.php" class="nav-link <?= $activeNav === 'laporan' ? 'active' : '' ?>">
                 <?= icon('laporan', 20) ?>
@@ -130,32 +135,16 @@ function admin_page_start(string $title, string $activeNav = 'dashboard', array 
                             <?php endforeach; ?>
                         <?php endif; ?>
                     </div>
+                    <div style="padding: 10px 16px; border-top: 1px solid var(--line); text-align: center; background: #fafbfc;">
+                        <a href="notifikasi.php" class="fs-13 text-blue fw-600">Lihat Semua Notifikasi</a>
+                    </div>
                 </div>
             </div>
 
-            <!-- User Profile Dropdown -->
-            <div class="topbar-user-dropdown">
-                <button type="button" class="user-profile-btn" id="btnUserProfile">
-                    <div class="avatar-circle">AD</div>
-                    <span class="user-name-text"><?= e($admin['nama']) ?></span>
-                    <?= icon('chevron-down', 16, 'text-muted') ?>
-                </button>
-                <div class="notif-popover" id="userDropdownMenu" style="width: 200px; right: 0;">
-                    <div style="padding: 12px 16px; border-bottom: 1px solid var(--line);">
-                        <div class="fw-600 fs-14"><?= e($admin['nama']) ?></div>
-                        <div class="fs-12 text-muted"><?= e($admin['role']) ?></div>
-                    </div>
-                    <div style="padding: 6px;">
-                        <a href="pengaturan.php" class="d-flex align-center gap-8 fs-13" style="padding: 8px 12px; border-radius: 6px;">
-                            <?= icon('pengaturan', 16) ?>
-                            <span>Pengaturan</span>
-                        </a>
-                        <a href="aksi.php?act=logout" class="d-flex align-center gap-8 fs-13 text-red" style="padding: 8px 12px; border-radius: 6px;">
-                            <?= icon('keluar', 16) ?>
-                            <span>Keluar</span>
-                        </a>
-                    </div>
-                </div>
+            <!-- User Profile (Sesuai Mockup & Spesifikasi) -->
+            <div class="user-profile-btn" style="cursor: default;">
+                <div class="avatar-circle">AD</div>
+                <span class="user-name-text">Admin</span>
             </div>
         </header>
 
@@ -232,10 +221,6 @@ function admin_page_end(string $activeNav = 'dashboard'): void
                     <?= icon('transaksi', 20) ?>
                     <span>Transaksi</span>
                 </a>
-                <a href="penjualan.php" class="drawer-menu-item <?= $activeNav === 'penjualan' ? 'active' : '' ?>">
-                    <?= icon('penjualan', 20) ?>
-                    <span>Penjualan</span>
-                </a>
                 <a href="barang.php" class="drawer-menu-item <?= $activeNav === 'barang' ? 'active' : '' ?>">
                     <?= icon('barang', 20) ?>
                     <span>Barang</span>
@@ -243,6 +228,10 @@ function admin_page_end(string $activeNav = 'dashboard'): void
                 <a href="stok.php" class="drawer-menu-item <?= $activeNav === 'stok' ? 'active' : '' ?>">
                     <?= icon('stok', 20) ?>
                     <span>Stok</span>
+                </a>
+                <a href="penitip.php" class="drawer-menu-item <?= $activeNav === 'penitip' ? 'active' : '' ?>">
+                    <?= icon('penitip', 20) ?>
+                    <span>Penitip</span>
                 </a>
                 <a href="laporan.php" class="drawer-menu-item <?= $activeNav === 'laporan' ? 'active' : '' ?>">
                     <?= icon('laporan', 20) ?>

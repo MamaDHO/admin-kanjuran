@@ -5,184 +5,112 @@ require_once __DIR__ . '/includes/bootstrap.php';
 auth_guard();
 
 $settings = admin_get_settings();
-$adminUser = admin_get_user();
+$stokMin = (int) ($settings['stok_min'] ?? 5);
+$notifAktif = !empty($settings['notif_aktif']);
+$namaMerchant = (string) ($settings['nama_merchant'] ?? 'Kantin Kejujuran');
+$nmid = (string) ($settings['nmid'] ?? 'ID1023456789012');
 
 admin_page_start('Pengaturan', 'pengaturan');
 ?>
 
-<!-- Header Info Desktop -->
+<!-- Header Info Desktop Sesuai Mockup SVG #20 -->
 <div class="page-header-desktop">
-    <div class="d-flex justify-between align-center">
+    <div class="d-flex justify-between align-center" style="flex-wrap: wrap; gap: 16px;">
         <div>
             <h1 class="page-title-lg">Pengaturan</h1>
-            <p class="page-subtitle-lg">Atur profil admin, data merchant QRIS, dan preferensi kantin.</p>
+            <p class="page-subtitle-lg">Atur batas stok, merchant QRIS, dan notifikasi.</p>
         </div>
     </div>
 </div>
 
-<form action="aksi.php" method="POST">
+<form action="aksi.php" method="POST" style="max-width: 680px;">
     <?= csrf_field() ?>
     <input type="hidden" name="act" value="simpan_pengaturan">
 
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px;">
+    <div style="display: flex; flex-direction: column; gap: 20px;">
 
-        <!-- Kolom Kiri: Profil & Kredensial -->
-        <div style="display: flex; flex-direction: column; gap: 20px;">
-            
-            <!-- Profil Admin Card -->
-            <div class="card">
-                <div class="d-flex align-center gap-14" style="margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--line);">
-                    <div style="width: 52px; height: 52px; border-radius: 50%; background: var(--blue); color: #fff; font-size: 20px; font-weight: 700; display: grid; place-items: center;">
-                        AD
-                    </div>
-                    <div>
-                        <h3 class="fs-16 fw-700 text-navy"><?= e($adminUser['nama']) ?></h3>
-                        <span class="badge badge-blue"><?= e($adminUser['role']) ?></span>
-                    </div>
-                </div>
-
-                <h4 class="fs-15 fw-700 text-navy" style="margin-bottom: 14px;">Data Diri Admin</h4>
-                
-                <div class="form-group">
-                    <label class="form-label">Nama Lengkap</label>
-                    <input type="text" name="admin_nama" class="form-control" value="<?= e($adminUser['nama']) ?>" required>
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">Alamat Email</label>
-                    <input type="email" name="admin_email" class="form-control" value="<?= e($adminUser['email'] ?? 'admin@kantinkejujuran.app') ?>" required>
-                </div>
+        <!-- KARTU 1: Batas Stok Menipis Sesuai Mockup SVG #20 -->
+        <div class="card" style="border-radius: 14px; padding: 22px;">
+            <div style="margin-bottom: 14px;">
+                <h3 class="fs-16 fw-700 text-navy" style="margin-bottom: 4px;">Batas Stok Menipis</h3>
+                <p class="fs-13 text-slate" style="margin: 0;">Barang dengan stok sama atau di bawah angka ini ditandai Menipis.</p>
             </div>
-
-            <!-- Ganti Password Card -->
-            <div class="card">
-                <h4 class="fs-15 fw-700 text-navy" style="margin-bottom: 4px;">Keamanan & Password</h4>
-                <p class="fs-13 text-muted" style="margin-bottom: 16px;">Biarkan kosong jika tidak ingin mengubah password.</p>
-
-                <div class="form-group">
-                    <label class="form-label">Password Saat Ini</label>
-                    <div class="input-icon-wrap">
-                        <span class="input-icon-left"><?= icon('lock', 18) ?></span>
-                        <input type="password" name="pass_lama" id="passLama" class="form-control has-right" placeholder="Password lama">
-                        <button type="button" class="input-icon-right btn-toggle-password" data-target="passLama">
-                            <?= icon('eye', 18) ?>
-                        </button>
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">Password Baru</label>
-                    <div class="input-icon-wrap">
-                        <span class="input-icon-left"><?= icon('lock', 18) ?></span>
-                        <input type="password" name="pass_baru" id="passBaru" class="form-control has-right" placeholder="Minimal 6 karakter">
-                        <button type="button" class="input-icon-right btn-toggle-password" data-target="passBaru">
-                            <?= icon('eye', 18) ?>
-                        </button>
-                    </div>
-                </div>
+            <div style="display: flex; align-items: center; gap: 10px; max-width: 180px;">
+                <input type="number" name="stok_min" class="form-control" value="<?= $stokMin ?>" min="1" max="100" required style="height: 42px; border-radius: 8px; font-weight: 700; font-size: 16px; text-align: center;">
+                <span class="fs-14 fw-600 text-slate">pcs</span>
             </div>
-
-            <!-- Pintasan QR Akses & Keluar -->
-            <div class="card" style="padding: 14px;">
-                <a href="qr.php" class="d-flex justify-between align-center" style="padding: 12px 14px; border-radius: 10px; background: var(--tint); margin-bottom: 8px;">
-                    <div class="d-flex align-center gap-12">
-                        <?= icon('qr', 22, 'text-blue') ?>
-                        <div>
-                            <div class="fs-14 fw-700 text-navy">QR Akses Pelanggan</div>
-                            <div class="fs-12 text-muted">Lihat, unduh, dan cetak QR toko</div>
-                        </div>
-                    </div>
-                    <span class="badge badge-success">Baru</span>
-                </a>
-
-                <a href="aksi.php?act=logout" class="d-flex justify-between align-center text-red" style="padding: 12px 14px; border-radius: 10px;" onclick="return confirm('Apakah Anda yakin ingin keluar dari akun admin?');">
-                    <div class="d-flex align-center gap-12">
-                        <?= icon('keluar', 22) ?>
-                        <span class="fs-14 fw-700">Keluar dari Akun</span>
-                    </div>
-                    <?= icon('chevron-right', 18) ?>
-                </a>
-            </div>
-
         </div>
 
-        <!-- Kolom Kanan: Pengaturan Kantin & QRIS -->
-        <div style="display: flex; flex-direction: column; gap: 20px;">
-            
-            <!-- Info Kantin -->
-            <div class="card">
-                <h4 class="fs-15 fw-700 text-navy" style="margin-bottom: 14px;">Informasi Kantin</h4>
-
-                <div class="form-group">
-                    <label class="form-label">Nama Kantin</label>
-                    <input type="text" name="nama_toko" class="form-control" value="<?= e($settings['nama_toko'] ?? 'Kantin Kejujuran') ?>" required>
+        <!-- KARTU 2: Notifikasi Sesuai Mockup SVG #20 -->
+        <div class="card" style="border-radius: 14px; padding: 22px;">
+            <div class="d-flex justify-between align-center">
+                <div style="padding-right: 20px;">
+                    <h3 class="fs-16 fw-700 text-navy" style="margin-bottom: 4px;">Notifikasi</h3>
+                    <p class="fs-13 text-slate" style="margin: 0;">Tampilkan peringatan stok menipis dan status pembayaran.</p>
                 </div>
+                <label style="position: relative; display: inline-block; width: 48px; height: 26px; margin: 0; cursor: pointer; flex-shrink: 0;">
+                    <input type="checkbox" name="notif_aktif" value="1" <?= $notifAktif ? 'checked' : '' ?> style="opacity: 0; width: 0; height: 0;" id="toggleNotif">
+                    <span style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: <?= $notifAktif ? 'var(--blue)' : '#CBD5E1' ?>; transition: .2s; border-radius: 34px;" id="sliderNotif"></span>
+                    <span style="position: absolute; content: ''; height: 20px; width: 20px; left: <?= $notifAktif ? '25px' : '3px' ?>; bottom: 3px; background-color: white; transition: .2s; border-radius: 50%;" id="knobNotif"></span>
+                </label>
+            </div>
+        </div>
 
-                <div class="form-group">
-                    <label class="form-label">Slogan / Tagline</label>
-                    <input type="text" name="tagline" class="form-control" value="<?= e($settings['tagline'] ?? 'Ambil, Bayar, Jujur') ?>" required>
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">Batas Stok Menipis (Default)</label>
-                    <input type="number" name="batas_stok_tipis" class="form-control" value="<?= (int)($settings['batas_stok_tipis'] ?? 5) ?>" min="1" required>
-                    <div class="fs-12 text-muted" style="margin-top: 4px;">Peringatan stok menipis otomatis aktif jika stok produk &le; batas ini.</div>
-                </div>
+        <!-- KARTU 3: Merchant QRIS Sesuai Mockup SVG #20 -->
+        <div class="card" style="border-radius: 14px; padding: 22px;">
+            <div style="margin-bottom: 16px;">
+                <h3 class="fs-16 fw-700 text-navy" style="margin-bottom: 4px;">Merchant QRIS</h3>
+                <p class="fs-13 text-slate" style="margin: 0;">Data yang ditampilkan saat pelanggan membayar.</p>
             </div>
 
-            <!-- Pengaturan QRIS Merchant -->
-            <div class="card">
-                <div class="d-flex align-center gap-10" style="margin-bottom: 14px;">
-                    <?= icon('qr', 22, 'text-blue') ?>
-                    <h4 class="fs-15 fw-700 text-navy">Data Merchant QRIS</h4>
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">Nama Merchant (Tampil di QRIS)</label>
-                    <input type="text" name="nama_merchant" class="form-control" value="<?= e($settings['nama_merchant'] ?? 'Kantin Kejujuran Official') ?>" required>
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">NMID (National Merchant ID)</label>
-                    <input type="text" name="nmid" class="form-control" value="<?= e($settings['nmid'] ?? 'ID1023456789012') ?>" required>
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">Masa Berlaku QRIS (detik)</label>
-                    <input type="number" name="qris_durasi" class="form-control" value="<?= (int)($settings['qris_durasi'] ?? 900) ?>" min="60" step="60" required>
-                    <div class="fs-12 text-muted" style="margin-top: 4px;">Standar: 900 detik (15 menit). QRIS kedaluwarsa setelah waktu ini.</div>
-                </div>
-
-                <!-- Toggles -->
-                <div style="border-top: 1px solid var(--line); margin-top: 16px; padding-top: 8px;">
-                    <div class="toggle-switch">
-                        <div class="switch-label-wrap">
-                            <div class="fw-600 fs-14">Pembayaran QRIS Aktif</div>
-                            <div class="fs-12 text-muted">Izinkan pelanggan checkout melalui QRIS</div>
-                        </div>
-                        <input type="checkbox" name="toggle_qris" class="switch-input" <?= !empty($settings['toggle_qris']) ? 'checked' : '' ?>>
-                    </div>
-
-                    <div class="toggle-switch">
-                        <div class="switch-label-wrap">
-                            <div class="fw-600 fs-14">Notifikasi Pesanan & Stok</div>
-                            <div class="fs-12 text-muted">Tampilkan pop-up peringatan pembayaran dan stok tipis</div>
-                        </div>
-                        <input type="checkbox" name="toggle_notifikasi" class="switch-input" <?= !empty($settings['toggle_notifikasi']) ? 'checked' : '' ?>>
-                    </div>
-                </div>
+            <div class="form-group" style="margin-bottom: 16px;">
+                <label class="form-label" style="font-size: 13px; font-weight: 600; margin-bottom: 6px; display: block;">Nama Merchant</label>
+                <input type="text" name="nama_merchant" class="form-control" value="<?= e($namaMerchant) ?>" required style="height: 42px; border-radius: 8px;">
             </div>
 
-            <!-- Tombol Simpan -->
-            <button type="submit" class="btn btn-primary btn-block" style="height: 48px; font-size: 15px;">
-                <?= icon('check', 18) ?>
-                <span>Simpan Semua Perubahan</span>
+            <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label" style="font-size: 13px; font-weight: 600; margin-bottom: 6px; display: block;">NMID</label>
+                <input type="text" name="nmid" class="form-control" value="<?= e($nmid) ?>" required style="height: 42px; border-radius: 8px; font-family: monospace;">
+            </div>
+        </div>
+
+        <!-- KARTU 4: QR Akses Pelanggan Sesuai Mockup SVG #20 -->
+        <div class="card" style="border-radius: 14px; padding: 22px;">
+            <div class="d-flex justify-between align-center" style="flex-wrap: wrap; gap: 16px;">
+                <div style="flex: 1; min-width: 240px;">
+                    <h3 class="fs-16 fw-700 text-navy" style="margin-bottom: 4px;">QR Akses Pelanggan</h3>
+                    <p class="fs-13 text-slate" style="margin: 0;">Tampilkan, cetak, atau unduh QR agar pelanggan bisa membuka menu.</p>
+                </div>
+                <a href="qr.php" class="btn btn-secondary" style="height: 40px; padding: 0 18px; font-size: 13.5px; font-weight: 600; border-radius: 8px; display: flex; align-items: center; gap: 8px;">
+                    <?= icon('qr', 18) ?>
+                    <span>Buka QR Kantin</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- Tombol Simpan Perubahan Sesuai Mockup SVG #20 -->
+        <div style="margin-top: 8px;">
+            <button type="submit" class="btn btn-primary" style="height: 44px; padding: 0 24px; font-size: 14px; font-weight: 600; border-radius: 8px;">
+                Simpan Perubahan
             </button>
-
         </div>
 
     </div>
 </form>
+
+<script>
+document.getElementById('toggleNotif').addEventListener('change', function() {
+    const slider = document.getElementById('sliderNotif');
+    const knob = document.getElementById('knobNotif');
+    if (this.checked) {
+        slider.style.backgroundColor = 'var(--blue)';
+        knob.style.left = '25px';
+    } else {
+        slider.style.backgroundColor = '#CBD5E1';
+        knob.style.left = '3px';
+    }
+});
+</script>
 
 <?php
 admin_page_end('pengaturan');
