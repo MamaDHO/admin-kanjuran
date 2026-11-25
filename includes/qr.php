@@ -1,12 +1,11 @@
 <?php
+declare(strict_types=1);
+
 /**
- * Generator QR Code sederhana (PHP murni, tanpa library).
- * Mode byte, error correction level L, versi 1-5 (maks. 106 karakter), mask 0.
- * Hasil: matriks 0/1 atau SVG.
+ * Generator QR Code murni PHP (Level L, versi 1-5, mask 0).
  */
 final class QR
 {
-    // [jumlah data codeword, jumlah error-correction codeword] per versi (level L, 1 blok)
     private const VER = [1 => [19, 7], 2 => [34, 10], 3 => [55, 15], 4 => [80, 20], 5 => [108, 26]];
     private const ALIGN = [1 => [], 2 => [6, 18], 3 => [6, 22], 4 => [6, 26], 5 => [6, 30]];
 
@@ -68,7 +67,7 @@ final class QR
         return array_slice($r, $len);
     }
 
-    /** @return int[][] matriks [baris][kolom], 1 = gelap */
+    /** @return int[][] */
     public static function matrix(string $text): array
     {
         self::initGf();
@@ -85,7 +84,6 @@ final class QR
         }
         [$dcw, $ecw] = self::VER[$version];
 
-        // --- susun bit data
         $bits = [];
         $put = function (int $val, int $n) use (&$bits): void {
             for ($i = $n - 1; $i >= 0; $i--) {
@@ -116,7 +114,6 @@ final class QR
         }
         $cw = array_merge($data, self::rsEc($data, $ecw));
 
-        // --- matriks + function patterns
         $size = 17 + 4 * $version;
         $m = array_fill(0, $size, array_fill(0, $size, 0));
         $f = array_fill(0, $size, array_fill(0, $size, false));
@@ -162,7 +159,6 @@ final class QR
             }
         }
 
-        // --- format info (level L, mask 0)
         $d = 8;
         $rem = $d;
         for ($i = 0; $i < 10; $i++) {
@@ -187,7 +183,6 @@ final class QR
         }
         $set(8, $size - 8, 1);
 
-        // --- tempatkan data (zigzag) + mask 0
         $all = [];
         foreach ($cw as $c) {
             for ($i = 7; $i >= 0; $i--) {
@@ -219,7 +214,6 @@ final class QR
         return $m;
     }
 
-    /** SVG responsif (tanpa quiet zone; atur padding lewat CSS). */
     public static function svg(string $text, string $color = '#21324F'): string
     {
         $m = self::matrix($text);
@@ -232,14 +226,11 @@ final class QR
                 }
             }
         }
-        return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' . $n . ' ' . $n . '" shape-rendering="crispEdges" role="img" aria-label="Kode QRIS">'
+        return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' . $n . ' ' . $n . '" shape-rendering="crispEdges" role="img" aria-label="QR Code akses Kantin Kejujuran">'
             . '<path fill="' . htmlspecialchars($color, ENT_QUOTES) . '" d="' . $path . '"/></svg>';
     }
 }
 
-/**
- * Helper global qr_svg()
- */
 function qr_svg(string $text, int $size = 200, string $color = '#21324F'): string
 {
     $svg = QR::svg($text, $color);
@@ -248,4 +239,3 @@ function qr_svg(string $text, int $size = 200, string $color = '#21324F'): strin
     }
     return $svg;
 }
-
