@@ -1,0 +1,72 @@
+[
+  {
+    "id": "es-teh-manis",
+    "nama": "Es Teh Manis",
+    "kategori_id": 2,
+    "kategori": "Minuman",
+    "harga": 2000,
+    "stok": 5,
+    "stok_ref": 20,
+    "penitip_id": null,
+    "penitip_nama": null,
+    "komisi_kantin": 0,
+    "aktif": true,
+    "gambar": "assets/img/es-teh.png"
+  },
+  {
+    "id": "mie-instan",
+    "nama": "Mie Instan",
+    "kategori_id": 1,
+    "kategori": "Makanan",
+    "harga": 4000,
+    "stok": 8,
+    "stok_ref": 20,
+    "penitip_id": null,
+    "penitip_nama": null,
+    "komisi_kantin": 0,
+    "aktif": true,
+    "gambar": "assets/img/mie-instan.png"
+  },
+  {
+    "id": "keripik-singkong",
+    "nama": "Keripik Singkong",
+    "kategori_id": 3,
+    "kategori": "Camilan",
+    "harga": 4000,
+    "stok": 2,
+    "stok_ref": 20,
+    "penitip_id": "bu-sari",
+    "penitip_nama": "Bu Sari",
+    "komisi_kantin": 500,
+    "aktif": true,
+    "gambar": "assets/img/keripik.png"
+  },
+  {
+    "id": "air-mineral",
+    "nama": "Air Mineral",
+    "kategori_id": 2,
+    "kategori": "Minuman",
+    "harga": 3000,
+    "stok": 12,
+    "stok_ref": 20,
+    "penitip_id": null,
+    "penitip_nama": null,
+    "komisi_kantin": 0,
+    "aktif": true,
+    "gambar": "assets/img/air-mineral.png"
+  },
+  {
+    "id": "roti-cokelat",
+    "nama": "Roti Cokelat",
+    "kategori_id": 1,
+    "kategori": "Makanan",
+    "harga": 3000,
+    "stok": 3,
+    "stok_ref": 20,
+    "penitip_id": "pak-joko",
+    "penitip_nama": "Pak Joko",
+    "komisi_kantin": 500,
+    "aktif": true,
+    "gambar": "assets/img/roti-cokelat.png"
+  }
+]

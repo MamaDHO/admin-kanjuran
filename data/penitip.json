@@ -1,14 +1,24 @@
 [
-    {
-        "id": 1,
-        "nama": "Bu Sari",
-        "hp": "0812-3456-7890",
-        "catatan": "Keripik singkong & aneka keripik gurih"
-    },
-    {
-        "id": 2,
-        "nama": "Pak Joko",
-        "hp": "0813-9876-5432",
-        "catatan": "Roti cokelat & kue basah"
-    }
+  {
+    "id": "bu-sari",
+    "kode": "BS",
+    "nama": "Bu Sari",
+    "no_hp": "0812-3456-7890",
+    "catatan": "Titip keripik tiap Senin",
+    "aktif": true,
+    "terjual_siklus": 40,
+    "hak_siklus": 140000,
+    "dibuat_pada": "2026-11-01 07:00:00"
+  },
+  {
+    "id": "pak-joko",
+    "kode": "PJ",
+    "nama": "Pak Joko",
+    "no_hp": "0813-9876-5432",
+    "catatan": "Titip roti cokelat setiap pagi",
+    "aktif": true,
+    "terjual_siklus": 30,
+    "hak_siklus": 75000,
+    "dibuat_pada": "2026-11-01 07:05:00"
+  }
 ]

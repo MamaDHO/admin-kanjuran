@@ -1,0 +1,17 @@
+[
+  {
+    "id": 1,
+    "nama": "Makanan",
+    "slug": "makanan"
+  },
+  {
+    "id": 2,
+    "nama": "Minuman",
+    "slug": "minuman"
+  },
+  {
+    "id": 3,
+    "nama": "Camilan",
+    "slug": "camilan"
+  }
+]

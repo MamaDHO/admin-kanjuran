@@ -1,0 +1,122 @@
+[
+  {
+    "id": 1,
+    "judul": "Stok menipis",
+    "pesan": "Keripik Singkong tersisa 2 pcs.",
+    "waktu": "10:50",
+    "tanggal": "2026-11-24",
+    "kategori": "stok",
+    "status": "warning",
+    "dibaca": false
+  },
+  {
+    "id": 2,
+    "judul": "Stok menipis",
+    "pesan": "Roti Cokelat tersisa 3 pcs.",
+    "waktu": "10:35",
+    "tanggal": "2026-11-24",
+    "kategori": "stok",
+    "status": "warning",
+    "dibaca": false
+  },
+  {
+    "id": 3,
+    "judul": "Pembayaran diterima",
+    "pesan": "#TRX040 · Rp 6.000 via QRIS",
+    "waktu": "10:35",
+    "tanggal": "2026-11-24",
+    "kategori": "pembayaran",
+    "status": "success",
+    "dibaca": true
+  },
+  {
+    "id": 4,
+    "judul": "Pembayaran batal",
+    "pesan": "#TRX039 tidak dibayar dalam 15 menit",
+    "waktu": "10:46",
+    "tanggal": "2026-11-24",
+    "kategori": "pembayaran",
+    "status": "danger",
+    "dibaca": true
+  },
+  {
+    "id": 5,
+    "judul": "Pembayaran diterima",
+    "pesan": "#TRX038 · Rp 3.000 via QRIS",
+    "waktu": "10:24",
+    "tanggal": "2026-11-24",
+    "kategori": "pembayaran",
+    "status": "success",
+    "dibaca": true
+  },
+  {
+    "id": 6,
+    "judul": "Pembayaran diterima",
+    "pesan": "#TRX037 · Rp 8.000 via QRIS",
+    "waktu": "10:18",
+    "tanggal": "2026-11-24",
+    "kategori": "pembayaran",
+    "status": "success",
+    "dibaca": true
+  },
+  {
+    "id": 7,
+    "judul": "Pembayaran diterima",
+    "pesan": "#TRX036 · Rp 3.000 via QRIS",
+    "waktu": "10:12",
+    "tanggal": "2026-11-24",
+    "kategori": "pembayaran",
+    "status": "success",
+    "dibaca": true
+  },
+  {
+    "id": 8,
+    "judul": "Stok menipis",
+    "pesan": "Es Teh Manis tersisa 5 pcs.",
+    "waktu": "09:30",
+    "tanggal": "2026-11-24",
+    "kategori": "stok",
+    "status": "warning",
+    "dibaca": true
+  },
+  {
+    "id": 9,
+    "judul": "Pembayaran diterima",
+    "pesan": "#TRX035 · Rp 2.000 via QRIS",
+    "waktu": "10:05",
+    "tanggal": "2026-11-24",
+    "kategori": "pembayaran",
+    "status": "success",
+    "dibaca": true
+  },
+  {
+    "id": 10,
+    "judul": "Pembayaran diterima",
+    "pesan": "#TRX034 · Rp 8.000 via QRIS",
+    "waktu": "09:58",
+    "tanggal": "2026-11-24",
+    "kategori": "pembayaran",
+    "status": "success",
+    "dibaca": true
+  },
+  {
+    "id": 11,
+    "judul": "Pembayaran diterima",
+    "pesan": "#TRX033 · Rp 9.000 via QRIS",
+    "waktu": "09:45",
+    "tanggal": "2026-11-24",
+    "kategori": "pembayaran",
+    "status": "success",
+    "dibaca": true
+  },
+  {
+    "id": 12,
+    "judul": "Pembayaran diterima",
+    "pesan": "#TRX032 · Rp 4.000 via QRIS",
+    "waktu": "09:40",
+    "tanggal": "2026-11-24",
+    "kategori": "pembayaran",
+    "status": "success",
+    "dibaca": true
+  }
+]
