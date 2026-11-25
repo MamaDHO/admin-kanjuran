@@ -1,188 +1,151 @@
 <?php
 declare(strict_types=1);
 
-require_once __DIR__ . '/includes/bootstrap.php';
-auth_guard();
+require_once __DIR__ . '/includes/layout.php';
+require_once __DIR__ . '/includes/ui.php';
 
-$settings = admin_get_settings();
-$adminUser = admin_get_user();
+$emptyMode = ($_GET['empty'] ?? '') === '1';
+$bundle = mock_seed_bundle($emptyMode);
 
-admin_page_start('Pengaturan', 'pengaturan');
+admin_page_start('Pengaturan', 'pengaturan', [
+    'seed_bundle' => $bundle,
+    'mobile_right' => 'bell',
+]);
+
+render_page_header(
+    'Pengaturan',
+    'Atur batas stok, merchant QRIS, dan notifikasi.'
+);
 ?>
 
-<!-- Header Info Desktop -->
-<div class="page-header-desktop">
-    <div class="d-flex justify-between align-center">
+<form id="settingsForm" novalidate>
+  <div class="settings-grid">
+    <div class="settings-left-stack">
+      <!-- Batas Stok Menipis -->
+      <section class="card card-lg" aria-label="Batas Stok Menipis">
+        <h2 class="settings-card-title">Batas Stok Menipis</h2>
+        <p class="settings-card-sub">Barang dengan stok sama atau di bawah angka ini ditandai Menipis.</p>
+        <div class="stepper-row">
+          <button type="button" class="stepper-btn" id="setThreshMinus" aria-label="Kurangi batas stok menipis">
+            <?= icon('minus', 20, '', 2.2) ?>
+          </button>
+          <div class="stepper-val-wrap">
+            <span class="stepper-val" id="setThreshVal">5</span>
+            <span class="stepper-unit">pcs</span>
+          </div>
+          <button type="button" class="stepper-btn stepper-btn-solid" id="setThreshPlus" aria-label="Tambah batas stok menipis">
+            <?= icon('plus', 20, '', 2.2) ?>
+          </button>
+        </div>
+      </section>
+
+      <!-- Toggle Notifikasi -->
+      <section class="card card-lg" aria-label="Pengaturan Notifikasi">
+        <div class="settings-switch-row">
+          <div>
+            <h2 class="settings-card-title" style="margin-bottom:4px;">Notifikasi</h2>
+            <p class="settings-card-sub" style="margin-bottom:0;">Tampilkan peringatan stok menipis dan status pembayaran.</p>
+          </div>
+          <button type="button"
+                  role="switch"
+                  id="setNotifSwitch"
+                  class="switch-toggle is-on"
+                  aria-checked="true"
+                  aria-label="Aktifkan notifikasi">
+            <span class="switch-thumb"></span>
+          </button>
+        </div>
+      </section>
+    </div>
+
+    <!-- Merchant QRIS -->
+    <section class="card card-lg" aria-label="Merchant QRIS">
+      <h2 class="settings-card-title">Merchant QRIS</h2>
+      <p class="settings-card-sub">Data yang ditampilkan saat pelanggan membayar.</p>
+
+      <div class="form-group">
+        <label for="setMerchantName" class="form-label">Nama Merchant</label>
+        <input type="text" id="setMerchantName" class="form-control" required>
+      </div>
+
+      <div class="form-group" style="margin-bottom:0;">
+        <label for="setNmid" class="form-label">NMID</label>
+        <input type="text" id="setNmid" class="form-control" required>
+      </div>
+    </section>
+  </div>
+
+  <!-- QR Akses Pelanggan -->
+  <section class="card card-lg" aria-label="QR Akses Pelanggan">
+    <div class="settings-qr-banner">
+      <div class="settings-qr-left">
+        <span class="settings-qr-icon" aria-hidden="true"><?= icon('qr', 24) ?></span>
         <div>
-            <h1 class="page-title-lg">Pengaturan</h1>
-            <p class="page-subtitle-lg">Atur profil admin, data merchant QRIS, dan preferensi kantin.</p>
+          <h2 class="card-title" style="margin-bottom:3px;">QR Akses Pelanggan</h2>
+          <p class="settings-card-sub" style="margin-bottom:0;">Tampilkan, cetak, atau unduh QR agar pelanggan bisa membuka menu.</p>
         </div>
+      </div>
+      <a href="qr.php" class="btn btn-outline-primary btn-lg">Buka QR Kantin</a>
     </div>
-</div>
+  </section>
 
-<form action="aksi.php" method="POST">
-    <?= csrf_field() ?>
-    <input type="hidden" name="act" value="simpan_pengaturan">
+  <div id="settingsError" class="form-error" role="alert" style="margin-top:16px;" hidden></div>
 
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px;">
-
-        <!-- Kolom Kiri: Profil & Kredensial -->
-        <div style="display: flex; flex-direction: column; gap: 20px;">
-            
-            <!-- Profil Admin Card -->
-            <div class="card">
-                <div class="d-flex align-center gap-14" style="margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--line);">
-                    <div style="width: 52px; height: 52px; border-radius: 50%; background: var(--blue); color: #fff; font-size: 20px; font-weight: 700; display: grid; place-items: center;">
-                        AD
-                    </div>
-                    <div>
-                        <h3 class="fs-16 fw-700 text-navy"><?= e($adminUser['nama']) ?></h3>
-                        <span class="badge badge-blue"><?= e($adminUser['role']) ?></span>
-                    </div>
-                </div>
-
-                <h4 class="fs-15 fw-700 text-navy" style="margin-bottom: 14px;">Data Diri Admin</h4>
-                
-                <div class="form-group">
-                    <label class="form-label">Nama Lengkap</label>
-                    <input type="text" name="admin_nama" class="form-control" value="<?= e($adminUser['nama']) ?>" required>
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">Alamat Email</label>
-                    <input type="email" name="admin_email" class="form-control" value="<?= e($adminUser['email'] ?? 'admin@kantinkejujuran.app') ?>" required>
-                </div>
-            </div>
-
-            <!-- Ganti Password Card -->
-            <div class="card">
-                <h4 class="fs-15 fw-700 text-navy" style="margin-bottom: 4px;">Keamanan & Password</h4>
-                <p class="fs-13 text-muted" style="margin-bottom: 16px;">Biarkan kosong jika tidak ingin mengubah password.</p>
-
-                <div class="form-group">
-                    <label class="form-label">Password Saat Ini</label>
-                    <div class="input-icon-wrap">
-                        <span class="input-icon-left"><?= icon('lock', 18) ?></span>
-                        <input type="password" name="pass_lama" id="passLama" class="form-control has-right" placeholder="Password lama">
-                        <button type="button" class="input-icon-right btn-toggle-password" data-target="passLama">
-                            <?= icon('eye', 18) ?>
-                        </button>
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">Password Baru</label>
-                    <div class="input-icon-wrap">
-                        <span class="input-icon-left"><?= icon('lock', 18) ?></span>
-                        <input type="password" name="pass_baru" id="passBaru" class="form-control has-right" placeholder="Minimal 6 karakter">
-                        <button type="button" class="input-icon-right btn-toggle-password" data-target="passBaru">
-                            <?= icon('eye', 18) ?>
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Pintasan QR Akses & Keluar -->
-            <div class="card" style="padding: 14px;">
-                <a href="qr.php" class="d-flex justify-between align-center" style="padding: 12px 14px; border-radius: 10px; background: var(--tint); margin-bottom: 8px;">
-                    <div class="d-flex align-center gap-12">
-                        <?= icon('qr', 22, 'text-blue') ?>
-                        <div>
-                            <div class="fs-14 fw-700 text-navy">QR Akses Pelanggan</div>
-                            <div class="fs-12 text-muted">Lihat, unduh, dan cetak QR toko</div>
-                        </div>
-                    </div>
-                    <span class="badge badge-success">Baru</span>
-                </a>
-
-                <a href="aksi.php?act=logout" class="d-flex justify-between align-center text-red" style="padding: 12px 14px; border-radius: 10px;" onclick="return confirm('Apakah Anda yakin ingin keluar dari akun admin?');">
-                    <div class="d-flex align-center gap-12">
-                        <?= icon('keluar', 22) ?>
-                        <span class="fs-14 fw-700">Keluar dari Akun</span>
-                    </div>
-                    <?= icon('chevron-right', 18) ?>
-                </a>
-            </div>
-
-        </div>
-
-        <!-- Kolom Kanan: Pengaturan Kantin & QRIS -->
-        <div style="display: flex; flex-direction: column; gap: 20px;">
-            
-            <!-- Info Kantin -->
-            <div class="card">
-                <h4 class="fs-15 fw-700 text-navy" style="margin-bottom: 14px;">Informasi Kantin</h4>
-
-                <div class="form-group">
-                    <label class="form-label">Nama Kantin</label>
-                    <input type="text" name="nama_toko" class="form-control" value="<?= e($settings['nama_toko'] ?? 'Kantin Kejujuran') ?>" required>
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">Slogan / Tagline</label>
-                    <input type="text" name="tagline" class="form-control" value="<?= e($settings['tagline'] ?? 'Ambil, Bayar, Jujur') ?>" required>
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">Batas Stok Menipis (Default)</label>
-                    <input type="number" name="batas_stok_tipis" class="form-control" value="<?= (int)($settings['batas_stok_tipis'] ?? 5) ?>" min="1" required>
-                    <div class="fs-12 text-muted" style="margin-top: 4px;">Peringatan stok menipis otomatis aktif jika stok produk &le; batas ini.</div>
-                </div>
-            </div>
-
-            <!-- Pengaturan QRIS Merchant -->
-            <div class="card">
-                <div class="d-flex align-center gap-10" style="margin-bottom: 14px;">
-                    <?= icon('qr', 22, 'text-blue') ?>
-                    <h4 class="fs-15 fw-700 text-navy">Data Merchant QRIS</h4>
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">Nama Merchant (Tampil di QRIS)</label>
-                    <input type="text" name="nama_merchant" class="form-control" value="<?= e($settings['nama_merchant'] ?? 'Kantin Kejujuran Official') ?>" required>
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">NMID (National Merchant ID)</label>
-                    <input type="text" name="nmid" class="form-control" value="<?= e($settings['nmid'] ?? 'ID1023456789012') ?>" required>
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">Masa Berlaku QRIS (detik)</label>
-                    <input type="number" name="qris_durasi" class="form-control" value="<?= (int)($settings['qris_durasi'] ?? 900) ?>" min="60" step="60" required>
-                    <div class="fs-12 text-muted" style="margin-top: 4px;">Standar: 900 detik (15 menit). QRIS kedaluwarsa setelah waktu ini.</div>
-                </div>
-
-                <!-- Toggles -->
-                <div style="border-top: 1px solid var(--line); margin-top: 16px; padding-top: 8px;">
-                    <div class="toggle-switch">
-                        <div class="switch-label-wrap">
-                            <div class="fw-600 fs-14">Pembayaran QRIS Aktif</div>
-                            <div class="fs-12 text-muted">Izinkan pelanggan checkout melalui QRIS</div>
-                        </div>
-                        <input type="checkbox" name="toggle_qris" class="switch-input" <?= !empty($settings['toggle_qris']) ? 'checked' : '' ?>>
-                    </div>
-
-                    <div class="toggle-switch">
-                        <div class="switch-label-wrap">
-                            <div class="fw-600 fs-14">Notifikasi Pesanan & Stok</div>
-                            <div class="fs-12 text-muted">Tampilkan pop-up peringatan pembayaran dan stok tipis</div>
-                        </div>
-                        <input type="checkbox" name="toggle_notifikasi" class="switch-input" <?= !empty($settings['toggle_notifikasi']) ? 'checked' : '' ?>>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Tombol Simpan -->
-            <button type="submit" class="btn btn-primary btn-block" style="height: 48px; font-size: 15px;">
-                <?= icon('check', 18) ?>
-                <span>Simpan Semua Perubahan</span>
-            </button>
-
-        </div>
-
-    </div>
+  <div class="settings-save-bar">
+    <button type="submit" class="btn btn-primary btn-lg" style="min-width:200px;">Simpan Perubahan</button>
+  </div>
 </form>
 
-<?php
-admin_page_end('pengaturan');
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const { getState, updateState, toast } = window.KKApp;
+
+  const s = getState().pengaturan || {};
+  let threshold = Number(s.batas_stok_menipis || 5);
+  let notifOn = s.notifikasi_aktif !== false;
+
+  const threshValEl = document.getElementById('setThreshVal');
+  const minusBtn = document.getElementById('setThreshMinus');
+  const plusBtn = document.getElementById('setThreshPlus');
+  const notifSwitch = document.getElementById('setNotifSwitch');
+  const merchantEl = document.getElementById('setMerchantName');
+  const nmidEl = document.getElementById('setNmid');
+  const errEl = document.getElementById('settingsError');
+
+  function syncUi() {
+    threshValEl.textContent = String(threshold);
+    minusBtn.disabled = threshold <= 1;
+    notifSwitch.classList.toggle('is-on', notifOn);
+    notifSwitch.setAttribute('aria-checked', notifOn ? 'true' : 'false');
+  }
+
+  merchantEl.value = s.nama_merchant || 'Kantin Kejujuran';
+  nmidEl.value = s.nmid || 'ID1023456789012';
+  syncUi();
+
+  minusBtn.addEventListener('click', () => { if (threshold > 1) { threshold--; syncUi(); } });
+  plusBtn.addEventListener('click', () => { if (threshold < 100) { threshold++; syncUi(); } });
+  notifSwitch.addEventListener('click', () => { notifOn = !notifOn; syncUi(); });
+
+  document.getElementById('settingsForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    const nama = merchantEl.value.trim();
+    const nmid = nmidEl.value.trim();
+    if (!nama || !nmid) {
+      errEl.textContent = 'Nama Merchant dan NMID wajib diisi.';
+      errEl.hidden = false;
+      return;
+    }
+    errEl.hidden = true;
+    updateState(st => {
+      st.pengaturan = st.pengaturan || {};
+      st.pengaturan.batas_stok_menipis = threshold;
+      st.pengaturan.notifikasi_aktif = notifOn;
+      st.pengaturan.nama_merchant = nama;
+      st.pengaturan.nmid = nmid;
+    });
+    toast('Pengaturan berhasil disimpan.');
+  });
+});
+</script>
+<?php admin_page_end('pengaturan'); ?>
