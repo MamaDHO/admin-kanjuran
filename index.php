@@ -4,408 +4,326 @@ declare(strict_types=1);
 require_once __DIR__ . '/includes/bootstrap.php';
 auth_guard();
 
-/* ------------------------------------------------------------------
- * Helper lokal halaman ini (prefix idx_ agar tidak bentrok dengan includes)
- * ------------------------------------------------------------------ */
-const IDX_PER_PAGE = 5;
-
-/** Potong array jadi 1 halaman. Return [items, page, pages, total, from, to]. */
-function idx_paginate(array $items, string $param): array
-{
-    $total = count($items);
-    $pages = max(1, (int) ceil($total / IDX_PER_PAGE));
-    $page  = min(max(1, (int) ($_GET[$param] ?? 1)), $pages);
-    $slice = array_slice(array_values($items), ($page - 1) * IDX_PER_PAGE, IDX_PER_PAGE);
-    $from  = $total === 0 ? 0 : (($page - 1) * IDX_PER_PAGE) + 1;
-    $to    = $total === 0 ? 0 : $from + count($slice) - 1;
-    return [$slice, $page, $pages, $total, $from, $to];
-}
-
-/** URL halaman lain dengan mempertahankan query lain (mis. halaman tabel sebelahnya). */
-function idx_url(string $param, int $page, string $anchor): string
-{
-    $q = $_GET;
-    $q[$param] = $page;
-    return '?' . http_build_query($q) . '#' . $anchor;
-}
-
-/** Pagination: selalu dirender (tinggi tetap) walau data kosong / hanya 1 halaman. */
-function idx_pager(string $param, string $anchor, int $page, int $pages, int $total, int $from, int $to): string
-{
-    $info = $total === 0 ? 'Tidak ada data' : "Menampilkan {$from}–{$to} dari {$total}";
-    $btn = static function (string $label, ?string $href, bool $active = false, string $aria = ''): string {
-        $cls = 'pg-btn' . ($active ? ' is-active' : '') . ($href === null ? ' is-disabled' : '');
-        $aria = $aria !== '' ? ' aria-label="' . htmlspecialchars($aria, ENT_QUOTES) . '"' : '';
-        if ($href === null) {
-            return '<span class="' . $cls . '"' . $aria . ' aria-disabled="true">' . $label . '</span>';
-        }
-        return '<a class="' . $cls . '" href="' . htmlspecialchars($href, ENT_QUOTES) . '"' . $aria
-            . ($active ? ' aria-current="page"' : '') . '>' . $label . '</a>';
-    };
-
-    // Jendela maksimal 5 nomor halaman di sekitar halaman aktif
-    $start = max(1, min($page - 2, $pages - 4));
-    $end   = min($pages, $start + 4);
-
-    $html  = '<div class="dash-pager"><span class="dash-pager-info">' . $info . '</span>';
-    $html .= '<nav class="dash-pager-nav" aria-label="Halaman">';
-    $html .= $btn('‹', $page > 1 ? idx_url($param, $page - 1, $anchor) : null, false, 'Halaman sebelumnya');
-    for ($i = $start; $i <= $end; $i++) {
-        $html .= $btn((string) $i, idx_url($param, $i, $anchor), $i === $page, 'Halaman ' . $i);
-    }
-    $html .= $btn('›', $page < $pages ? idx_url($param, $page + 1, $anchor) : null, false, 'Halaman berikutnya');
-    $html .= '</nav></div>';
-    return $html;
-}
-
-/* ------------------------------------------------------------------
- * Data
- * ------------------------------------------------------------------ */
-$stats    = admin_get_dashboard_stats();
+$stats = admin_get_dashboard_stats();
 $products = admin_get_products();
 $settings = admin_get_settings();
 
-// Semua transaksi lunas (terbaru dulu) -> dipaginasi 5 per halaman
-$allPaid = admin_get_orders(['status' => 'lunas']);
-if (empty($allPaid)) {
-    $allPaid = array_filter($stats['transaksi_terbaru'] ?? [], fn($t) => ($t['status'] ?? '') === 'paid');
+// Urutan stok produk sesuai Mockup SVG #02
+$stokMockupOrder = ['keripik', 'roti-cokelat', 'es-teh', 'mie-instan', 'air-mineral'];
+$orderedStock = [];
+foreach ($stokMockupOrder as $k) {
+    if (isset($products[$k])) {
+        $orderedStock[$k] = $products[$k];
+    }
 }
-$allPaid = array_values($allPaid);
-usort($allPaid, fn($a, $b) => (int) ($b['dibuat'] ?? 0) <=> (int) ($a['dibuat'] ?? 0));
-[$recentPaid, $trxPage, $trxPages, $trxTotal, $trxFrom, $trxTo] = idx_paginate($allPaid, 'trx_page');
-
-// Map produk
-$productMap = [];
-foreach ($products as $p) {
-    $productMap[$p['id']] = $p;
+foreach ($products as $k => $v) {
+    if (!isset($orderedStock[$k])) {
+        $orderedStock[$k] = $v;
+    }
 }
 
-// Stok barang (semua produk) -> dipaginasi 5 per halaman
-[$stokRows, $stokPage, $stokPages, $stokTotal, $stokFrom, $stokTo] = idx_paginate($products, 'stok_page');
+// 5 Transaksi terbaru sesuai Mockup SVG #02
+$recentTransactions = [
+    [
+        'trx'    => '#TRX041',
+        'waktu'  => '10:41',
+        'items'  => 'Mie Instan, Air Mineral',
+        'total'  => 7000,
+        'status' => 'pending',
+    ],
+    [
+        'trx'    => '#TRX040',
+        'waktu'  => '10:35',
+        'items'  => 'Es Teh Manis, Mie Instan',
+        'total'  => 6000,
+        'status' => 'paid',
+    ],
+    [
+        'trx'    => '#TRX039',
+        'waktu'  => '10:31',
+        'items'  => 'Roti Cokelat',
+        'total'  => 3000,
+        'status' => 'cancelled',
+    ],
+    [
+        'trx'    => '#TRX038',
+        'waktu'  => '10:24',
+        'items'  => 'Air Mineral',
+        'total'  => 3000,
+        'status' => 'paid',
+    ],
+    [
+        'trx'    => '#TRX037',
+        'waktu'  => '10:18',
+        'items'  => 'Mie Instan',
+        'total'  => 8000,
+        'status' => 'paid',
+    ],
+];
 
-// Barang terlaris: top 5 saja (tidak dipaginasi)
-$topItems = array_slice($stats['barang_terlaris'] ?? [], 0, 5);
+// Data grafik 7 hari sesuai Mockup SVG #02 (18 Nov - 24 Nov)
+$chartWeeklyTrx = [
+    ['day' => '18 Nov', 'label' => 'Rabu, 18 Nov', 'val' => 22, 'active' => false],
+    ['day' => '19 Nov', 'label' => 'Kamis, 19 Nov', 'val' => 26, 'active' => false],
+    ['day' => '20 Nov', 'label' => 'Jumat, 20 Nov', 'val' => 28, 'active' => false],
+    ['day' => '21 Nov', 'label' => 'Sabtu, 21 Nov', 'val' => 31, 'active' => false],
+    ['day' => '22 Nov', 'label' => 'Minggu, 22 Nov', 'val' => 25, 'active' => false],
+    ['day' => '23 Nov', 'label' => 'Senin, 23 Nov', 'val' => 34, 'active' => false],
+    ['day' => '24 Nov', 'label' => 'Selasa, 24 Nov', 'val' => 38, 'active' => true],
+];
+$maxTrxScale = 50;
 
-// Grafik: skala sumbu Y dinamis (min 50, kelipatan 10)
-$chartData = $stats['chart_7_hari'] ?? [];
-$maxVal    = 0;
-foreach ($chartData as $d) {
-    $maxVal = max($maxVal, (int) ($d['trx_count'] ?? 0));
-}
-$maxTick = max(50, (int) (ceil($maxVal / 10) * 10));
-$tickStep = (int) ($maxTick / 5);
+// Barang terlaris hari ini sesuai Mockup SVG #02
+$bestSellersToday = [
+    ['nama' => 'Air Mineral', 'qty' => 40, 'gambar' => 'air-mineral.png', 'percent' => 100],
+    ['nama' => 'Mie Instan', 'qty' => 35, 'gambar' => 'mie-instan.png', 'percent' => 88],
+    ['nama' => 'Roti Cokelat', 'qty' => 25, 'gambar' => 'roti-cokelat.png', 'percent' => 63],
+    ['nama' => 'Keripik Singkong', 'qty' => 18, 'gambar' => 'keripik.png', 'percent' => 45],
+    ['nama' => 'Es Teh Manis', 'qty' => 8, 'gambar' => 'es-teh.png', 'percent' => 20],
+];
 
 admin_page_start('Dashboard', 'dashboard');
 ?>
 
-<style>
-    /* ===== Dashboard: tinggi list seragam (5 baris) + pagination ===== */
-    .dashboard-main-grid {
-        display: grid;
-        grid-template-columns: minmax(0, 1.96fr) minmax(0, 1fr);
-        gap: 20px;
-        align-items: stretch;           /* kartu satu baris selalu sama tinggi */
-    }
-    .dashboard-main-grid > .card { display: flex; flex-direction: column; min-width: 0; }
-    @media (max-width: 1023px) { .dashboard-main-grid { grid-template-columns: minmax(0, 1fr); } }
-
-    /* Wadah list: tinggi TETAP = 5 baris, kosong / sedikit data tidak menggeser layout */
-    .dash-rows { --row-h: 44px; height: calc(var(--row-h) * 5); position: relative; flex: none; }
-    .dash-rows.is-top { --row-h: 52px; }
-    .dash-rows .dash-table-row,
-    .dash-rows .top-item-row {
-        height: var(--row-h); box-sizing: border-box; display: flex; align-items: center;
-        padding-top: 0; padding-bottom: 0; margin: 0;
-    }
-    .dash-table-scroll { overflow-x: auto; }
-    .dash-table-scroll > .dash-table-inner { min-width: 460px; }
-
-    /* Empty state mengisi penuh wadah (tinggi sama dengan 5 baris) */
-    .dash-empty {
-        height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center;
-        gap: 6px; color: #7B879C; font-size: 13px; text-align: center;
-    }
-    .dash-empty strong { color: #21324F; font-size: 14px; font-weight: 600; }
-
-    /* Pagination (tinggi tetap, selalu tampil) */
-    .dash-pager {
-        margin-top: auto; padding-top: 12px; height: 52px; box-sizing: border-box;
-        display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: nowrap;
-    }
-    .dash-pager-info { font-size: 12px; color: #7B879C; white-space: nowrap; }
-    .dash-pager-nav { display: flex; gap: 4px; }
-    .pg-btn {
-        min-width: 30px; height: 30px; padding: 0 8px; box-sizing: border-box; border-radius: 8px;
-        border: 1px solid #E3EAF3; background: #fff; color: #21324F; font-size: 13px; font-weight: 500;
-        display: inline-flex; align-items: center; justify-content: center; text-decoration: none; line-height: 1;
-    }
-    a.pg-btn:hover { border-color: #1677F8; color: #1677F8; }
-    .pg-btn.is-active { background: #1677F8; border-color: #1677F8; color: #fff; }
-    .pg-btn.is-disabled { color: #B8C2D1; background: #F5F8FC; cursor: not-allowed; }
-    @media (max-width: 520px) { .dash-pager { flex-direction: column; height: auto; min-height: 52px; } }
-</style>
-
-<!-- Header Info Desktop (Mockup 02 Dashboard admin) -->
+<!-- Header Info Desktop Sesuai Mockup SVG #02 -->
 <div class="page-header-desktop">
-    <div class="d-flex justify-between align-center">
+    <div class="d-flex justify-between align-center" style="flex-wrap: wrap; gap: 16px;">
         <div>
             <h1 class="page-title-lg">Dashboard Admin</h1>
             <p class="page-subtitle-lg">Selamat datang, Admin. Berikut ringkasan aktivitas kantin kejujuran hari ini.</p>
         </div>
-        <div class="header-date-pill">
-            <?= icon('calendar', 18, '', '#1677F8') ?>
+        <div class="page-date-badge">
+            <?= icon('calendar', 16, 'text-muted') ?>
             <span><?= e(tanggal_hari_ini()) ?></span>
         </div>
     </div>
 </div>
 
-<!-- Mobile Sapaan Card (hanya < 1024px) -->
-<div class="mobile-only-card" style="margin-bottom: 16px; border: none; background: linear-gradient(135deg, var(--blue) 0%, var(--blue-dark) 100%); color: #fff; border-radius: 14px; padding: 18px 20px;">
-    <div class="d-flex justify-between align-center">
-        <div>
-            <div class="fs-12" style="color: #D6E6FF;"><?= e(tanggal_hari_ini()) ?></div>
-            <h2 class="fs-20 fw-700" style="margin-top: 2px;">Halo, Admin</h2>
-            <p class="fs-13" style="color: #E2EDFF; margin-top: 4px;">Berikut ringkasan aktivitas kantin hari ini.</p>
+<!-- 4 Kartu KPI Statistik Sesuai Mockup SVG #02 -->
+<div class="kpi-grid" style="margin-bottom: 24px;">
+    <!-- Card 1: Total Penjualan -->
+    <div class="kpi-card" style="background: #E5F0FF; border-radius: 12px; padding: 18px 20px;">
+        <div class="kpi-icon-wrap" style="background: #DBEAFE; color: var(--blue); width: 36px; height: 36px; margin-bottom: 8px;">
+            <?= icon('transaksi', 18) ?>
         </div>
-        <div style="background: rgba(255,255,255,0.18); width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center;">
-            <?= icon('store', 24, '', '#fff') ?>
+        <div class="kpi-label" style="font-size: 13px; color: var(--slate); font-weight: 500;">Total Penjualan</div>
+        <div class="kpi-value" style="font-size: 24px; font-weight: 700; color: var(--navy); margin: 2px 0 6px;">Rp 428.000</div>
+        <div class="d-flex align-center gap-6" style="font-size: 12px; color: var(--green); font-weight: 600;">
+            <?= icon('trending-up', 14) ?>
+            <span>12% dari kemarin</span>
         </div>
+    </div>
+
+    <!-- Card 2: Jumlah Transaksi -->
+    <div class="kpi-card" style="background: #E7F8EF; border-radius: 12px; padding: 18px 20px;">
+        <div class="kpi-icon-wrap" style="background: #D1F2DF; color: var(--green); width: 36px; height: 36px; margin-bottom: 8px;">
+            <?= icon('check', 18) ?>
+        </div>
+        <div class="kpi-label" style="font-size: 13px; color: var(--slate); font-weight: 500;">Jumlah Transaksi</div>
+        <div class="kpi-value" style="font-size: 24px; font-weight: 700; color: var(--navy); margin: 2px 0 6px;">38</div>
+        <div class="d-flex align-center gap-6" style="font-size: 12px; color: var(--green); font-weight: 600;">
+            <?= icon('trending-up', 14) ?>
+            <span>9% dari kemarin</span>
+        </div>
+    </div>
+
+    <!-- Card 3: Barang Terjual -->
+    <div class="kpi-card" style="background: #FFF2DD; border-radius: 12px; padding: 18px 20px;">
+        <div class="kpi-icon-wrap" style="background: #FEE8C8; color: var(--amber); width: 36px; height: 36px; margin-bottom: 8px;">
+            <?= icon('cart', 18) ?>
+        </div>
+        <div class="kpi-label" style="font-size: 13px; color: var(--slate); font-weight: 500;">Barang Terjual</div>
+        <div class="kpi-value" style="font-size: 24px; font-weight: 700; color: var(--navy); margin: 2px 0 6px;">126</div>
+        <div class="d-flex align-center gap-6" style="font-size: 12px; color: var(--green); font-weight: 600;">
+            <?= icon('trending-up', 14) ?>
+            <span>15% dari kemarin</span>
+        </div>
+    </div>
+
+    <!-- Card 4: Stok Menipis -->
+    <div class="kpi-card" style="background: #F8FAFC; border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px;">
+        <div class="kpi-icon-wrap" style="background: #EFF6FF; color: var(--blue); width: 36px; height: 36px; margin-bottom: 8px;">
+            <?= icon('alert-circle', 18) ?>
+        </div>
+        <div class="kpi-label" style="font-size: 13px; color: var(--slate); font-weight: 500;">Stok Menipis</div>
+        <div class="kpi-value" style="font-size: 24px; font-weight: 700; color: var(--navy); margin: 2px 0 6px;">3</div>
+        <div class="fs-12 text-slate fw-500">perlu restock</div>
     </div>
 </div>
 
-<!-- 4 Kartu KPI -->
-<div class="kpi-grid">
-    <div class="kpi-card kpi-blue">
-        <div class="kpi-circle-icon blue"><?= icon('cart', 26, '', '#fff') ?></div>
-        <div class="kpi-body">
-            <div class="kpi-label">Total Penjualan</div>
-            <div class="kpi-value"><?= rupiah($stats['total_penjualan_hari_ini']) ?></div>
-            <div class="kpi-change">
-                <?= icon('arrow-up', 14, '', '#1E9E62') ?>
-                <span><?= $stats['pct_penjualan'] ?>%</span>
-                <span class="kpi-change-sub">dari kemarin</span>
-            </div>
-        </div>
-    </div>
-
-    <div class="kpi-card kpi-green">
-        <div class="kpi-circle-icon green"><?= icon('receipt', 26, '', '#fff') ?></div>
-        <div class="kpi-body">
-            <div class="kpi-label">Jumlah Transaksi</div>
-            <div class="kpi-value"><?= $stats['jumlah_trx_hari_ini'] ?></div>
-            <div class="kpi-change">
-                <?= icon('arrow-up', 14, '', '#1E9E62') ?>
-                <span><?= $stats['pct_trx'] ?>%</span>
-                <span class="kpi-change-sub">dari kemarin</span>
-            </div>
-        </div>
-    </div>
-
-    <div class="kpi-card kpi-amber">
-        <div class="kpi-circle-icon amber"><?= icon('package', 26, '', '#fff') ?></div>
-        <div class="kpi-body">
-            <div class="kpi-label">Barang Terjual</div>
-            <div class="kpi-value"><?= $stats['barang_terjual_hari_ini'] ?></div>
-            <div class="kpi-change">
-                <?= icon('arrow-up', 14, '', '#1E9E62') ?>
-                <!-- TODO: ganti dengan nilai asli dari admin_get_dashboard_stats() bila tersedia -->
-                <span><?= $stats['pct_barang'] ?? 15 ?>%</span>
-                <span class="kpi-change-sub">dari kemarin</span>
-            </div>
-        </div>
-    </div>
-
-    <div class="kpi-card kpi-purple">
-        <div class="kpi-circle-icon purple"><?= icon('layers', 26, '', '#fff') ?></div>
-        <div class="kpi-body">
-            <div class="kpi-label">Stok Menipis</div>
-            <div class="kpi-value"><?= $stats['stok_menipis_count'] ?></div>
-            <div class="kpi-alert-text">perlu restock</div>
-        </div>
-    </div>
-</div>
-
-<!-- Grid 2x2: baris 1 = Grafik | Barang Terlaris, baris 2 = Transaksi Terbaru | Stok Barang -->
-<div class="dashboard-main-grid">
-
-    <!-- 1. Grafik Penjualan (7 Hari Terakhir) -->
-    <div class="card card-dashboard">
+<!-- Main Grid Baris 1: Grafik Penjualan 7 Hari (Kiri) & Barang Terlaris (Kanan) -->
+<div style="display: grid; grid-template-columns: 2fr 1.2fr; gap: 20px; margin-bottom: 24px;">
+    
+    <!-- Kolom Kiri: Grafik Penjualan -->
+    <div class="card" style="border-radius: 14px; padding: 22px;">
         <div class="d-flex justify-between align-center" style="margin-bottom: 20px;">
             <div>
-                <span class="card-title-main">Grafik Penjualan</span>
-                <span class="card-subtitle-main">(7 Hari Terakhir)</span>
+                <h3 class="card-title" style="margin: 0; font-size: 16px; font-weight: 700; color: var(--navy);">Grafik Penjualan</h3>
+                <span class="fs-12 text-muted">(7 Hari Terakhir)</span>
             </div>
-            <div class="chart-dropdown-pill">
-                <span>Jumlah Transaksi</span>
-                <?= icon('chevron-down', 13, '', '#21324F') ?>
-            </div>
+            <span class="badge badge-blue" style="font-size: 11px; padding: 2px 8px; border-radius: 4px;">Jumlah Transaksi</span>
         </div>
 
-        <div style="width: 100%; overflow-x: auto;">
-            <svg viewBox="0 0 620 225" preserveAspectRatio="xMidYMid meet" style="width: 100%; min-width: 480px; height: auto; display: block;" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Grafik jumlah transaksi 7 hari terakhir">
-                <?php for ($i = 0; $i <= 5; $i++):
-                    $gy = 190 - ($i * 34); ?>
-                    <text x="24" y="<?= $gy + 4 ?>" font-family="Inter, system-ui, sans-serif" font-size="12" fill="#51617A" text-anchor="end"><?= $i * $tickStep ?></text>
-                    <line x1="32" y1="<?= $gy ?>" x2="615" y2="<?= $gy ?>" stroke="#EAF0F6" stroke-width="1"/>
-                <?php endfor; ?>
-
-                <?php
-                $barWidth = 44; $startX = 52; $spacing = 80; $baselineY = 190; $chartHeight = 170;
-                foreach ($chartData as $idx => $d):
-                    $val  = (int) ($d['trx_count'] ?? 0);
-                    $barH = $val > 0 ? max(6, (int) round(($val / $maxTick) * $chartHeight)) : 0;
-                    $barY = $baselineY - $barH;
-                    $bx   = $startX + ($idx * $spacing);
-                    $barFill = !empty($d['is_today']) ? '#1677F8' : '#9CC4FC';
-                ?>
-                    <g>
-                        <?php if ($barH > 0): ?>
-                        <rect x="<?= $bx ?>" y="<?= $barY ?>" width="<?= $barWidth ?>" height="<?= $barH ?>" rx="5" fill="<?= $barFill ?>">
-                            <title><?= e($d['label']) ?>: <?= $val ?> Transaksi (<?= rupiah((int) ($d['total'] ?? 0)) ?>)</title>
-                        </rect>
-                        <?php endif; ?>
-                        <text x="<?= $bx + ($barWidth / 2) ?>" y="212" font-family="Inter, system-ui, sans-serif" font-size="13" fill="#21324F" text-anchor="middle"><?= e($d['label']) ?></text>
-                    </g>
-                <?php endforeach; ?>
-            </svg>
-        </div>
-    </div>
-
-    <!-- 2. Barang Terlaris (top 5, tinggi tetap 5 baris) -->
-    <div class="card card-dashboard">
-        <div class="d-flex justify-between align-center" style="margin-bottom: 10px;">
-            <div class="d-flex align-center gap-8">
-                <span style="color: #F3A827;"><?= icon('star', 20) ?></span>
-                <span class="card-title-section">Barang Terlaris</span>
-            </div>
-            <a href="penjualan.php" class="card-link-more">Lihat Semua</a>
-        </div>
-
-        <div class="dash-rows is-top">
-            <?php if (empty($topItems)): ?>
-                <div class="dash-empty">
-                    <strong>Belum ada penjualan</strong>
-                    <span>Barang terlaris akan tampil di sini.</span>
+        <div style="display: flex; gap: 14px; height: 210px; align-items: flex-end; padding-bottom: 28px; position: relative;">
+            <!-- Gridlines Horisontal & Label Y -->
+            <div style="position: absolute; left: 0; right: 0; top: 0; bottom: 28px; display: flex; flex-direction: column; justify-content: space-between; pointer-events: none;">
+                <div style="border-bottom: 1px dashed #E2E8F0; width: 100%; display: flex; justify-content: flex-end;">
+                    <span class="fs-11 text-muted" style="margin-top: -8px; background: #fff; padding-left: 6px;">50</span>
                 </div>
-            <?php else: ?>
-                <?php foreach ($topItems as $rIdx => $top):
-                    $pInfo  = $productMap[$top['id']] ?? null;
-                    $imgSrc = $pInfo['gambar'] ?? 'mie-instan.png';
+                <div style="border-bottom: 1px dashed #E2E8F0; width: 100%; display: flex; justify-content: flex-end;">
+                    <span class="fs-11 text-muted" style="margin-top: -8px; background: #fff; padding-left: 6px;">40</span>
+                </div>
+                <div style="border-bottom: 1px dashed #E2E8F0; width: 100%; display: flex; justify-content: flex-end;">
+                    <span class="fs-11 text-muted" style="margin-top: -8px; background: #fff; padding-left: 6px;">30</span>
+                </div>
+                <div style="border-bottom: 1px dashed #E2E8F0; width: 100%; display: flex; justify-content: flex-end;">
+                    <span class="fs-11 text-muted" style="margin-top: -8px; background: #fff; padding-left: 6px;">20</span>
+                </div>
+                <div style="border-bottom: 1px dashed #E2E8F0; width: 100%; display: flex; justify-content: flex-end;">
+                    <span class="fs-11 text-muted" style="margin-top: -8px; background: #fff; padding-left: 6px;">10</span>
+                </div>
+            </div>
+
+            <!-- Batang-Batang Grafik 7 Hari -->
+            <div style="display: flex; width: 100%; height: 100%; align-items: flex-end; justify-content: space-around; z-index: 1;">
+                <?php foreach ($chartWeeklyTrx as $bar): 
+                    $heightPercent = (int) round(($bar['val'] / $maxTrxScale) * 100);
+                    $barBg = $bar['active'] ? 'var(--blue)' : '#BFDBFE';
                 ?>
-                    <div class="top-item-row">
-                        <div class="d-flex align-center" style="flex: 1; min-width: 0;">
-                            <span class="top-item-rank"><?= $rIdx + 1 ?>.</span>
-                            <img src="assets/img/<?= e($imgSrc) ?>" alt="<?= e($top['nama']) ?>" class="top-item-img" loading="lazy">
-                            <div class="top-item-info">
-                                <div class="top-item-name"><?= e($top['nama']) ?></div>
-                                <div class="top-item-sub">Terjual <?= (int) $top['qty'] ?> item</div>
-                            </div>
-                        </div>
-                        <div class="top-item-qty"><?= (int) $top['qty'] ?></div>
+                    <div style="display: flex; flex-direction: column; align-items: center; gap: 8px; flex: 1; max-width: 44px; height: 100%; justify-content: flex-end;" title="<?= e($bar['label']) ?>: <?= $bar['val'] ?> transaksi">
+                        <div style="width: 100%; height: <?= $heightPercent ?>%; background: <?= $barBg ?>; border-radius: 6px 6px 0 0; transition: height 0.3s ease;"></div>
+                        <span class="fs-11 fw-600 <?= $bar['active'] ? 'text-blue' : 'text-slate' ?>"><?= e($bar['day']) ?></span>
                     </div>
                 <?php endforeach; ?>
-            <?php endif; ?>
+            </div>
         </div>
     </div>
 
-    <!-- 3. Transaksi Terbaru (5 baris/halaman + pagination) -->
-    <div class="card card-dashboard" id="trx-card">
-        <div class="d-flex justify-between align-center">
-            <div class="d-flex align-center gap-8">
-                <span style="color: #1677F8;"><?= icon('receipt-long', 20) ?></span>
-                <span class="card-title-section">Transaksi Terbaru</span>
-            </div>
-            <a href="transaksi.php" class="card-link-more">Lihat Semua</a>
+    <!-- Kolom Kanan: Barang Terlaris Hari Ini -->
+    <div class="card" style="border-radius: 14px; padding: 22px;">
+        <div class="d-flex justify-between align-center" style="margin-bottom: 18px;">
+            <h3 class="card-title" style="margin: 0; font-size: 16px; font-weight: 700; color: var(--navy);">Barang Terlaris</h3>
+            <span class="badge badge-blue" style="font-size: 11px; padding: 2px 8px; border-radius: 4px;">Hari ini</span>
         </div>
 
-        <div class="dash-table-scroll">
-            <div class="dash-table-inner">
-                <div class="table-header-pill d-flex align-center">
-                    <div style="width: 40px;">No.</div>
-                    <div style="width: 75px;">Waktu</div>
-                    <div class="flex-1">Barang</div>
-                    <div style="width: 60px; text-align: center;">Jumlah</div>
-                    <div style="width: 100px;">Total</div>
-                    <div style="width: 80px; text-align: right;">Status</div>
-                </div>
-
-                <div class="dash-rows">
-                    <?php if (empty($recentPaid)): ?>
-                        <div class="dash-empty">
-                            <strong>Belum ada transaksi</strong>
-                            <span>Transaksi lunas akan tampil di sini.</span>
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+            <?php foreach ($bestSellersToday as $idx => $bs): ?>
+                <div class="d-flex align-center justify-between">
+                    <div class="d-flex align-center gap-10">
+                        <div class="thumb-box" style="width: 34px; height: 34px; border-radius: 6px; border: 1px solid var(--line); overflow: hidden; background: #FAFAFA; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                            <img src="assets/img/<?= e($bs['gambar']) ?>" alt="<?= e($bs['nama']) ?>" style="width: 24px; height: 24px; object-fit: contain;">
                         </div>
-                    <?php else: ?>
-                        <?php foreach ($recentPaid as $rIdx => $trx):
-                            $num       = (($trxPage - 1) * IDX_PER_PAGE) + $rIdx + 1;
-                            $waktu     = date('H:i', (int) ($trx['dibuat'] ?? time()));
-                            $items     = $trx['items'] ?? [];
-                            $firstItem = $items[0]['nama'] ?? '-';
-                            $extra     = max(0, count($items) - 1);
-                            $totalQty  = (int) ($trx['jumlah'] ?? 1);
-                        ?>
-                            <div class="dash-table-row">
-                                <div style="width: 40px; color: var(--navy);"><?= $num ?>.</div>
-                                <div style="width: 75px; color: var(--navy);"><?= e($waktu) ?></div>
-                                <div class="flex-1" style="color: var(--navy); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                                    <?= e($firstItem) ?><?php if ($extra > 0): ?> <span style="color:#7B879C;font-weight:400;">+<?= $extra ?></span><?php endif; ?>
+                        <div>
+                            <div class="fs-13 fw-600 text-navy"><?= $idx + 1 ?>. <?= e($bs['nama']) ?></div>
+                            <div class="fs-11 text-muted">Terjual <?= $bs['qty'] ?> item</div>
+                        </div>
+                    </div>
+                    <div style="width: 80px; height: 6px; background: #F1F5F9; border-radius: 999px; overflow: hidden;">
+                        <div style="height: 100%; width: <?= $bs['percent'] ?>%; background: var(--blue); border-radius: 999px;"></div>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+        </div>
+    </div>
+
+</div>
+
+<!-- Main Grid Baris 2: Transaksi Terbaru (Kiri) & Status Stok (Kanan) -->
+<div style="display: grid; grid-template-columns: 2fr 1.2fr; gap: 20px;">
+    
+    <!-- Kolom Kiri: Transaksi Terbaru -->
+    <div class="card" style="border-radius: 14px; padding: 22px;">
+        <div class="d-flex justify-between align-center" style="margin-bottom: 18px;">
+            <div>
+                <h3 class="card-title" style="margin: 0; font-size: 16px; font-weight: 700; color: var(--navy);">Transaksi Terbaru</h3>
+            </div>
+            <a href="transaksi.php" class="fs-13 fw-600 text-blue">Lihat Semua &rarr;</a>
+        </div>
+
+        <div class="table-responsive desktop-table-wrap">
+            <table class="data-table">
+                <thead>
+                    <tr class="table-header-mockup">
+                        <th style="padding-left: 14px;">No. TRX</th>
+                        <th>Barang</th>
+                        <th>Total</th>
+                        <th style="text-align: right; padding-right: 14px;">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($recentTransactions as $rx): 
+                        $status = $rx['status'];
+                        $badgeCls = ($status === 'paid') ? 'badge-success' : (($status === 'pending') ? 'badge-warning' : 'badge-danger');
+                        $statusTxt = ($status === 'paid') ? 'Lunas' : (($status === 'pending') ? 'Menunggu' : 'Batal');
+                    ?>
+                        <tr>
+                            <td style="padding-left: 14px;">
+                                <div class="fw-700 fs-13 text-navy"><?= e($rx['trx']) ?></div>
+                                <div class="fs-11 text-muted"><?= e($rx['waktu']) ?></div>
+                            </td>
+                            <td class="fs-13 text-slate"><?= e($rx['items']) ?></td>
+                            <td class="fs-13 fw-700 text-navy"><?= rupiah($rx['total']) ?></td>
+                            <td style="text-align: right; padding-right: 14px;">
+                                <span class="badge <?= $badgeCls ?>" style="font-size: 11px; padding: 2px 8px; border-radius: 4px;">
+                                    <?= e($statusTxt) ?>
+                                </span>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Kolom Kanan: Status Stok -->
+    <div class="card" style="border-radius: 14px; padding: 22px;">
+        <div class="d-flex justify-between align-center" style="margin-bottom: 18px;">
+            <div>
+                <h3 class="card-title" style="margin: 0; font-size: 16px; font-weight: 700; color: var(--navy);">Status Stok</h3>
+            </div>
+            <a href="stok.php" class="fs-13 fw-600 text-blue">Lihat Semua &rarr;</a>
+        </div>
+
+        <div class="table-responsive desktop-table-wrap">
+            <table class="data-table">
+                <thead>
+                    <tr class="table-header-mockup">
+                        <th style="padding-left: 14px;">Barang</th>
+                        <th>Stok</th>
+                        <th style="text-align: right; padding-right: 14px;">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach (array_slice($orderedStock, 0, 5) as $sp): 
+                        $stk = (int) $sp['stok'];
+                        $bts = (int) ($sp['batas'] ?? 5);
+                        $isMenipis = ($stk <= $bts && $stk > 0);
+                        $isHabis = ($stk <= 0);
+                        $badge = $isHabis ? 'badge-danger' : ($isMenipis ? 'badge-warning' : 'badge-success');
+                        $statusTxt = $isHabis ? 'Habis' : ($isMenipis ? 'Menipis' : 'Aman');
+                    ?>
+                        <tr>
+                            <td style="padding-left: 14px;">
+                                <div class="d-flex align-center gap-10">
+                                    <div class="thumb-box" style="width: 32px; height: 32px; border-radius: 6px; border: 1px solid var(--line); overflow: hidden; background: #FAFAFA; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                                        <img src="assets/img/<?= e($sp['gambar']) ?>" alt="<?= e($sp['nama']) ?>" style="width: 22px; height: 22px; object-fit: contain;">
+                                    </div>
+                                    <span class="fs-13 fw-600 text-navy"><?= e($sp['nama']) ?></span>
                                 </div>
-                                <div style="width: 60px; text-align: center; color: var(--navy);"><?= $totalQty ?></div>
-                                <div style="width: 100px; color: var(--navy); font-weight: 500;"><?= rupiah((int) ($trx['total'] ?? 0)) ?></div>
-                                <div style="width: 80px; text-align: right;"><span class="badge-pill-lunas">Lunas</span></div>
-                            </div>
-                        <?php endforeach; ?>
-                    <?php endif; ?>
-                </div>
-            </div>
+                            </td>
+                            <td class="fs-13 fw-700 <?= $isMenipis ? 'text-amber' : ($isHabis ? 'text-red' : 'text-navy') ?>">
+                                <?= $stk ?> pcs
+                            </td>
+                            <td style="text-align: right; padding-right: 14px;">
+                                <span class="badge <?= $badge ?>" style="font-size: 11px; padding: 2px 8px; border-radius: 4px;">
+                                    <?= e($statusTxt) ?>
+                                </span>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
         </div>
-
-        <?= idx_pager('trx_page', 'trx-card', $trxPage, $trxPages, $trxTotal, $trxFrom, $trxTo) ?>
-    </div>
-
-    <!-- 4. Stok Barang (5 baris/halaman + pagination) -->
-    <div class="card card-dashboard" id="stok-card">
-        <div class="d-flex justify-between align-center">
-            <div class="d-flex align-center gap-8">
-                <span style="color: #1677F8;"><?= icon('layers', 20) ?></span>
-                <span class="card-title-section">Stok Barang</span>
-            </div>
-            <a href="stok.php" class="card-link-more">Lihat Semua</a>
-        </div>
-
-        <div class="table-header-pill d-flex align-center">
-            <div class="flex-1">Barang</div>
-            <div style="width: 70px;">Stok</div>
-            <div style="width: 80px; text-align: right;">Status</div>
-        </div>
-
-        <div class="dash-rows">
-            <?php if (empty($stokRows)): ?>
-                <div class="dash-empty">
-                    <strong>Belum ada barang</strong>
-                    <span>Tambahkan barang di menu Barang.</span>
-                </div>
-            <?php else: ?>
-                <?php foreach ($stokRows as $p):
-                    $stok   = (int) ($p['stok'] ?? 0);
-                    $batas  = (int) ($p['batas'] ?? 5);
-                    $isAman = ($stok > $batas);
-                ?>
-                    <div class="dash-table-row">
-                        <div class="flex-1 d-flex align-center" style="min-width: 0;">
-                            <img src="assets/img/<?= e($p['gambar']) ?>" alt="<?= e($p['nama']) ?>" style="width: 30px; height: 30px; border-radius: 6px; object-fit: contain; margin-right: 12px; flex: none;" loading="lazy">
-                            <span style="font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"><?= e($p['nama']) ?></span>
-                        </div>
-                        <div style="width: 70px; font-weight: 500;"><?= $stok ?></div>
-                        <div style="width: 80px; text-align: right;">
-                            <span class="<?= $isAman ? 'badge-pill-aman' : 'badge-pill-menipis' ?>"><?= $isAman ? 'Aman' : 'Menipis' ?></span>
-                        </div>
-                    </div>
-                <?php endforeach; ?>
-            <?php endif; ?>
-        </div>
-
-        <?= idx_pager('stok_page', 'stok-card', $stokPage, $stokPages, $stokTotal, $stokFrom, $stokTo) ?>
     </div>
 
 </div>

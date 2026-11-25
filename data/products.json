@@ -7,7 +7,9 @@
         "stok": 5,
         "batas": 5,
         "aktif": true,
-        "gambar": "es-teh.png"
+        "gambar": "es-teh.png",
+        "penitip_id": null,
+        "komisi": 0
     },
     "mie-instan": {
         "id": "mie-instan",
@@ -17,7 +19,9 @@
         "stok": 8,
         "batas": 5,
         "aktif": true,
-        "gambar": "mie-instan.png"
+        "gambar": "mie-instan.png",
+        "penitip_id": null,
+        "komisi": 0
     },
     "roti-cokelat": {
         "id": "roti-cokelat",
@@ -27,7 +31,9 @@
         "stok": 3,
         "batas": 5,
         "aktif": true,
-        "gambar": "roti-cokelat.png"
+        "gambar": "roti-cokelat.png",
+        "penitip_id": 2,
+        "komisi": 500
     },
     "air-mineral": {
         "id": "air-mineral",
@@ -37,7 +43,9 @@
         "stok": 12,
         "batas": 5,
         "aktif": true,
-        "gambar": "air-mineral.png"
+        "gambar": "air-mineral.png",
+        "penitip_id": null,
+        "komisi": 0
     },
     "keripik": {
         "id": "keripik",
@@ -47,6 +55,8 @@
         "stok": 2,
         "batas": 5,
         "aktif": true,
-        "gambar": "keripik.png"
+        "gambar": "keripik.png",
+        "penitip_id": 1,
+        "komisi": 500
     }
 }
