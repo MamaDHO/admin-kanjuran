@@ -1,0 +1,92 @@
+[
+    {
+        "id": 1,
+        "barang_id": "es-teh",
+        "jenis": "RESTOCK",
+        "jumlah": 5,
+        "stok_sebelum": 0,
+        "stok_sesudah": 5,
+        "catatan": "Stok awal",
+        "waktu": 1732410000
+    },
+    {
+        "id": 2,
+        "barang_id": "mie-instan",
+        "jenis": "RESTOCK",
+        "jumlah": 8,
+        "stok_sebelum": 0,
+        "stok_sesudah": 8,
+        "catatan": "Stok awal",
+        "waktu": 1732410000
+    },
+    {
+        "id": 3,
+        "barang_id": "roti-cokelat",
+        "jenis": "RESTOCK",
+        "jumlah": 5,
+        "stok_sebelum": 0,
+        "stok_sesudah": 5,
+        "catatan": "Stok titipan Pak Joko",
+        "waktu": 1732410000
+    },
+    {
+        "id": 4,
+        "barang_id": "air-mineral",
+        "jenis": "RESTOCK",
+        "jumlah": 12,
+        "stok_sebelum": 0,
+        "stok_sesudah": 12,
+        "catatan": "Stok awal",
+        "waktu": 1732410000
+    },
+    {
+        "id": 5,
+        "barang_id": "keripik",
+        "jenis": "RESTOCK",
+        "jumlah": 4,
+        "stok_sebelum": 0,
+        "stok_sesudah": 4,
+        "catatan": "Stok titipan Bu Sari",
+        "waktu": 1732410000
+    },
+    {
+        "id": 6,
+        "barang_id": "keripik",
+        "jenis": "JUAL",
+        "jumlah": 2,
+        "stok_sebelum": 4,
+        "stok_sesudah": 2,
+        "catatan": "Penjualan #TRX034",
+        "waktu": 1732442280
+    },
+    {
+        "id": 7,
+        "barang_id": "roti-cokelat",
+        "jenis": "JUAL",
+        "jumlah": 2,
+        "stok_sebelum": 5,
+        "stok_sesudah": 3,
+        "catatan": "Penjualan #TRX036",
+        "waktu": 1732443120
+    },
+    {
+        "id": 8,
+        "barang_id": "mie-instan",
+        "jenis": "RESTOCK",
+        "jumlah": 5,
+        "stok_sebelum": 8,
+        "stok_sesudah": 13,
+        "catatan": "Test Restock CLI",
+        "waktu": 1795583404
+    },
+    {
+        "id": 9,
+        "barang_id": "mie-instan",
+        "jenis": "KOREKSI",
+        "jumlah": 5,
+        "stok_sebelum": 13,
+        "stok_sesudah": 8,
+        "catatan": "Salah hitung - Reset to 8",
+        "waktu": 1795583404
+    }
+]

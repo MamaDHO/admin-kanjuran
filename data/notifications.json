@@ -4,44 +4,71 @@
         "tipe": "stok",
         "judul": "Stok menipis",
         "pesan": "Keripik Singkong tersisa 2 pcs.",
-        "waktu": "10:20",
+        "waktu": "10:50",
         "dibaca": false,
-        "timestamp": 1793074710
+        "timestamp": 1732445400
     },
     {
         "id": 2,
         "tipe": "stok",
         "judul": "Stok menipis",
         "pesan": "Roti Cokelat tersisa 3 pcs.",
-        "waktu": "09:58",
+        "waktu": "10:35",
         "dibaca": false,
-        "timestamp": 1793073510
+        "timestamp": 1732444500
     },
     {
         "id": 3,
         "tipe": "pembayaran",
         "judul": "Pembayaran diterima",
-        "pesan": "#TRX038 · Rp 3.000 via QRIS.",
-        "waktu": "10:24",
+        "pesan": "#TRX040 · Rp 6.000 via QRIS",
+        "waktu": "10:35",
         "dibaca": true,
-        "timestamp": 1793075110
+        "timestamp": 1732444500
     },
     {
         "id": 4,
         "tipe": "pembayaran",
-        "judul": "Pembayaran kedaluwarsa",
-        "pesan": "#TRX033 tidak dibayar dalam 15 menit.",
-        "waktu": "09:45",
-        "dibaca": true,
-        "timestamp": 1793072910
+        "judul": "Pembayaran batal",
+        "pesan": "#TRX039 tidak dibayar dalam 15 menit",
+        "waktu": "10:46",
+        "dibaca": false,
+        "timestamp": 1732445160
     },
     {
         "id": 5,
-        "tipe": "stok",
-        "judul": "Restock tersimpan",
-        "pesan": "Air Mineral +24 pcs.",
-        "waktu": "Kemarin",
+        "tipe": "pembayaran",
+        "judul": "Pembayaran diterima",
+        "pesan": "#TRX038 · Rp 3.000 via QRIS",
+        "waktu": "10:24",
         "dibaca": true,
-        "timestamp": 1792991910
+        "timestamp": 1732443840
+    },
+    {
+        "id": 6,
+        "tipe": "pembayaran",
+        "judul": "Pembayaran diterima",
+        "pesan": "#TRX037 · Rp 8.000 via QRIS",
+        "waktu": "10:18",
+        "dibaca": true,
+        "timestamp": 1732443480
+    },
+    {
+        "id": 7,
+        "tipe": "pembayaran",
+        "judul": "Pembayaran diterima",
+        "pesan": "#TRX036 · Rp 3.000 via QRIS",
+        "waktu": "10:12",
+        "dibaca": true,
+        "timestamp": 1732443120
+    },
+    {
+        "id": 8,
+        "tipe": "stok",
+        "judul": "Stok menipis",
+        "pesan": "Es Teh Manis tersisa 5 pcs.",
+        "waktu": "09:30",
+        "dibaca": true,
+        "timestamp": 1732440600
     }
 ]

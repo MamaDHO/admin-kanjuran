@@ -1,0 +1,16 @@
+[
+    {
+        "id": 1,
+        "penitip_id": 1,
+        "jumlah": 100000,
+        "tanggal": "2026-11-20",
+        "catatan": "Setoran penjualan minggu ke-3"
+    },
+    {
+        "id": 2,
+        "penitip_id": 2,
+        "jumlah": 50000,
+        "tanggal": "2026-11-21",
+        "catatan": "Setoran roti & kue"
+    }
+]

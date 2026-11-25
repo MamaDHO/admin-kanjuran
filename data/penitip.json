@@ -1,0 +1,14 @@
+[
+    {
+        "id": 1,
+        "nama": "Bu Sari",
+        "hp": "0812-3456-7890",
+        "catatan": "Keripik singkong & aneka keripik gurih"
+    },
+    {
+        "id": 2,
+        "nama": "Pak Joko",
+        "hp": "0813-9876-5432",
+        "catatan": "Roti cokelat & kue basah"
+    }
+]
