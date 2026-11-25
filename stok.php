@@ -1,567 +1,529 @@
 <?php
 declare(strict_types=1);
 
-require_once __DIR__ . '/includes/bootstrap.php';
-auth_guard();
+require_once __DIR__ . '/includes/layout.php';
+require_once __DIR__ . '/includes/ui.php';
 
-$products = admin_get_products();
-$settings = admin_get_settings();
-$defaultBatas = (int) ($settings['stok_min'] ?? 5);
+$emptyMode = ($_GET['empty'] ?? '') === '1';
+$bundle = mock_seed_bundle($emptyMode);
+$todayLabel = tanggal_id($bundle['pengaturan']['tanggal_demo'] ?? DEMO_TODAY);
+$initFilter = $_GET['filter'] ?? 'all';
+$initRestock = $_GET['restock'] ?? '';
 
-$filterStatus = strtolower(trim((string) ($_GET['status'] ?? 'semua')));
-$searchQ = trim((string) ($_GET['q'] ?? ''));
+admin_page_start('Stok', 'stok', [
+    'seed_bundle' => $bundle,
+    'mobile_right' => 'bell',
+]);
 
-// Filter logic
-$filteredProducts = $products;
-
-if ($filterStatus === 'menipis') {
-    $filteredProducts = array_filter($filteredProducts, fn($p) => ((int)$p['stok'] <= (int)($p['batas'] ?? $defaultBatas) && (int)$p['stok'] > 0));
-} elseif ($filterStatus === 'aman') {
-    $filteredProducts = array_filter($filteredProducts, fn($p) => ((int)$p['stok'] > (int)($p['batas'] ?? $defaultBatas)));
-} elseif ($filterStatus === 'habis') {
-    $filteredProducts = array_filter($filteredProducts, fn($p) => ((int)$p['stok'] <= 0));
-}
-
-if ($searchQ !== '') {
-    $qLower = strtolower($searchQ);
-    $filteredProducts = array_filter($filteredProducts, fn($p) => str_contains(strtolower($p['nama'] ?? ''), $qLower));
-}
-
-// Urutan produk agar sesuai Mockup SVG #10 & #11:
-// Keripik Singkong (2 pcs), Roti Cokelat (3 pcs), Es Teh Manis (5 pcs), Mie Instan (8 pcs), Air Mineral (12 pcs)
-$mockupStokOrder = ['keripik', 'roti-cokelat', 'es-teh', 'mie-instan', 'air-mineral'];
-$orderedProducts = [];
-foreach ($mockupStokOrder as $k) {
-    if (isset($filteredProducts[$k])) {
-        $orderedProducts[$k] = $filteredProducts[$k];
-    }
-}
-foreach ($filteredProducts as $k => $v) {
-    if (!isset($orderedProducts[$k])) {
-        $orderedProducts[$k] = $v;
-    }
-}
-
-// KPI stats
-$totalBarang = count($products);
-$menipisCount = count(array_filter($products, fn($p) => ((int)$p['stok'] <= (int)($p['batas'] ?? $defaultBatas) && (int)$p['stok'] > 0)));
-$habisCount = count(array_filter($products, fn($p) => ((int)$p['stok'] <= 0)));
-
-// Paginasi: 10 desktop, 5 mobile (Mockup menampilkan 5)
-$currentPage = max(1, (int) ($_GET['page'] ?? 1));
-$perPage = 10;
-$totalItems = count($orderedProducts);
-$totalPages = max(1, (int) ceil($totalItems / $perPage));
-$currentPage = min($currentPage, $totalPages);
-$offset = ($currentPage - 1) * $perPage;
-$paginatedProducts = array_slice($orderedProducts, $offset, $perPage, true);
-
-admin_page_start('Stok', 'stok');
+render_page_header(
+    'Stok',
+    'Pantau persediaan, restock, dan koreksi stok.',
+    $todayLabel
+);
 ?>
 
-<!-- Header Info Desktop Sesuai Mockup SVG #10 & #11 -->
-<div class="page-header-desktop">
-    <div class="d-flex justify-between align-center" style="flex-wrap: wrap; gap: 16px;">
-        <div>
-            <h1 class="page-title-lg">Stok</h1>
-            <p class="page-subtitle-lg">Pantau persediaan, restock, dan koreksi stok.</p>
+<div class="split-workspace" id="stokWorkspace">
+  <div class="split-main-col">
+    <!-- 3 KPI Cards -->
+    <section class="kpi-grid-3 stok-kpi-grid" aria-label="Ringkasan Stok">
+      <article class="kpi-card kpi-compact kpi-blue">
+        <span class="kpi-icon-circle" aria-hidden="true"><?= icon('barang', 22) ?></span>
+        <div class="kpi-body">
+          <p class="kpi-label">Total Barang</p>
+          <p class="kpi-value" id="stkKpiTotal">0</p>
         </div>
-        <div class="page-date-badge">
-            <?= icon('calendar', 16, 'text-muted') ?>
-            <span><?= e(tanggal_hari_ini()) ?></span>
+      </article>
+      <article class="kpi-card kpi-compact kpi-amber">
+        <span class="kpi-icon-circle" aria-hidden="true"><?= icon('alert-triangle', 22) ?></span>
+        <div class="kpi-body">
+          <p class="kpi-label">Menipis</p>
+          <p class="kpi-value" id="stkKpiLow">0</p>
         </div>
+      </article>
+      <article class="kpi-card kpi-compact kpi-red">
+        <span class="kpi-icon-circle" aria-hidden="true"><?= icon('x', 22) ?></span>
+        <div class="kpi-body">
+          <p class="kpi-label">Habis</p>
+          <p class="kpi-value" id="stkKpiOut">0</p>
+        </div>
+      </article>
+    </section>
+
+    <section class="card" aria-label="Daftar Stok Barang">
+      <div class="filter-toolbar">
+        <div class="search-box mobile-hide">
+          <span class="search-box-icon"><?= icon('search', 18) ?></span>
+          <label for="stkSearchInput" class="sr-only">Cari barang</label>
+          <input type="search" id="stkSearchInput" class="search-input" placeholder="Cari barang...">
+        </div>
+        <div class="chip-group" role="group" aria-label="Filter status stok" id="stkFilterChips">
+          <button type="button" class="chip<?= $initFilter === 'all' ? ' is-active' : '' ?>" data-stk-filter="all">Semua</button>
+          <button type="button" class="chip<?= $initFilter === 'menipis' ? ' is-active' : '' ?>" data-stk-filter="menipis">Menipis</button>
+          <button type="button" class="chip<?= $initFilter === 'aman' ? ' is-active' : '' ?>" data-stk-filter="aman">Aman</button>
+          <button type="button" class="chip<?= $initFilter === 'habis' ? ' is-active' : '' ?>" data-stk-filter="habis">Habis</button>
+        </div>
+      </div>
+
+      <div id="stkListContainer"></div>
+    </section>
+  </div>
+
+  <!-- Right Side Panel: Restock / Koreksi Stok -->
+  <aside class="split-side-panel" id="stkPanel" aria-label="Aksi Stok">
+    <div class="panel-head">
+      <h2 class="panel-title" id="stkPanelTitle">Restock Barang</h2>
+      <button type="button" class="panel-close-btn" id="stkPanelCloseBtn" aria-label="Tutup panel">
+        <?= icon('x', 20) ?>
+      </button>
     </div>
-</div>
-
-<!-- 3 KPI Cards Ringkasan Sesuai Mockup SVG #10 & #11 -->
-<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 20px;">
-    <!-- Card 1: Total Barang -->
-    <div class="kpi-card" style="background: #E5F0FF; border-radius: 12px; padding: 16px 18px;">
-        <div class="kpi-icon-wrap" style="background: #DBEAFE; color: var(--blue); width: 36px; height: 36px; margin-bottom: 6px;">
-            <?= icon('barang', 18) ?>
-        </div>
-        <div class="kpi-label" style="font-size: 13px; color: var(--slate); font-weight: 500;">Total Barang</div>
-        <div class="kpi-value" style="font-size: 22px; font-weight: 700; color: var(--navy);"><?= $totalBarang ?></div>
-    </div>
-
-    <!-- Card 2: Menipis -->
-    <div class="kpi-card" style="background: #FFF2DD; border-radius: 12px; padding: 16px 18px;">
-        <div class="kpi-icon-wrap" style="background: #FEE8C8; color: var(--amber); width: 36px; height: 36px; margin-bottom: 6px;">
-            <?= icon('alert-circle', 18) ?>
-        </div>
-        <div class="kpi-label" style="font-size: 13px; color: var(--slate); font-weight: 500;">Menipis</div>
-        <div class="kpi-value" style="font-size: 22px; font-weight: 700; color: var(--navy);"><?= $menipisCount ?></div>
-    </div>
-
-    <!-- Card 3: Habis -->
-    <div class="kpi-card" style="background: #FFECEC; border-radius: 12px; padding: 16px 18px;">
-        <div class="kpi-icon-wrap" style="background: #FEE2E2; color: var(--red); width: 36px; height: 36px; margin-bottom: 6px;">
-            <?= icon('x', 18) ?>
-        </div>
-        <div class="kpi-label" style="font-size: 13px; color: var(--slate); font-weight: 500;">Habis</div>
-        <div class="kpi-value" style="font-size: 22px; font-weight: 700; color: var(--navy);"><?= $habisCount ?></div>
-    </div>
-</div>
-
-<!-- Card Wrapper Tabel & Toolbar Stok -->
-<div class="card" style="border-radius: 14px; padding: 22px;">
-
-    <!-- Toolbar: Search & Chips Status -->
-    <div class="d-flex justify-between align-center" style="flex-wrap: wrap; gap: 14px; margin-bottom: 20px;">
-        
-        <!-- Search Input -->
-        <div style="flex: 1; max-width: 320px;">
-            <form action="stok.php" method="GET" style="display: flex; gap: 8px;">
-                <?php if ($filterStatus !== 'semua'): ?>
-                    <input type="hidden" name="status" value="<?= e($filterStatus) ?>">
-                <?php endif; ?>
-                <div class="input-icon-wrap flex-1" style="position: relative;">
-                    <span class="input-icon-left" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--grey);">
-                        <?= icon('search', 16) ?>
-                    </span>
-                    <input type="text" name="q" class="form-control" style="height: 38px; padding-left: 36px; font-size: 13.5px; border-radius: 8px; border: 1px solid var(--line);" placeholder="Cari barang..." value="<?= e($searchQ) ?>">
-                </div>
-            </form>
-        </div>
-
-        <!-- Filter Status Chips Sesuai Mockup SVG -->
-        <div class="chip-group" style="padding-bottom: 0;">
-            <a href="stok.php?status=semua<?= $searchQ !== '' ? '&q=' . urlencode($searchQ) : '' ?>" 
-               class="chip <?= $filterStatus === 'semua' ? 'active' : '' ?>" style="height: 36px; padding: 8px 14px; font-size: 13px; border-radius: 8px;">
-                Semua
-            </a>
-            <a href="stok.php?status=menipis<?= $searchQ !== '' ? '&q=' . urlencode($searchQ) : '' ?>" 
-               class="chip <?= $filterStatus === 'menipis' ? 'active' : '' ?>" style="height: 36px; padding: 8px 14px; font-size: 13px; border-radius: 8px;">
-                Menipis
-            </a>
-            <a href="stok.php?status=aman<?= $searchQ !== '' ? '&q=' . urlencode($searchQ) : '' ?>" 
-               class="chip <?= $filterStatus === 'aman' ? 'active' : '' ?>" style="height: 36px; padding: 8px 14px; font-size: 13px; border-radius: 8px;">
-                Aman
-            </a>
-            <a href="stok.php?status=habis<?= $searchQ !== '' ? '&q=' . urlencode($searchQ) : '' ?>" 
-               class="chip <?= $filterStatus === 'habis' ? 'active' : '' ?>" style="height: 36px; padding: 8px 14px; font-size: 13px; border-radius: 8px;">
-                Habis
-            </a>
-        </div>
-
-    </div>
-
-    <!-- Tabel Stok Desktop Sesuai Mockup SVG #10 & #11 -->
-    <?php if (empty($paginatedProducts)): ?>
-        <div class="empty-state" style="padding: 48px 20px; text-align: center;">
-            <div class="empty-icon-wrap" style="width: 56px; height: 56px; border-radius: 50%; background: #F1F5F9; color: var(--slate); display: flex; align-items: center; justify-content: center; margin: 0 auto 14px;">
-                <?= icon('stok', 28) ?>
-            </div>
-            <div class="fw-700 fs-16 text-navy" style="margin-bottom: 4px;">Tidak ada barang</div>
-            <div class="fs-13 text-slate">Tidak ada data persediaan stok yang cocok dengan kriteria filter.</div>
-        </div>
-    <?php else: ?>
-        <div class="table-responsive desktop-table-wrap">
-            <table class="data-table">
-                <thead>
-                    <tr class="table-header-mockup">
-                        <th style="padding-left: 14px;">Barang</th>
-                        <th>Stok</th>
-                        <th style="min-width: 140px;">Level</th>
-                        <th>Status</th>
-                        <th style="text-align: right; padding-right: 14px;">Aksi</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($paginatedProducts as $p): 
-                        $stok = (int) $p['stok'];
-                        $batas = (int) ($p['batas'] ?? $defaultBatas);
-                        $isMenipis = ($stok <= $batas && $stok > 0);
-                        $isHabis = ($stok <= 0);
-                        
-                        $statusBadge = $isHabis ? 'badge-danger' : ($isMenipis ? 'badge-warning' : 'badge-success');
-                        $statusText = $isHabis ? 'Habis' : ($isMenipis ? 'Menipis' : 'Aman');
-
-                        // Level progress bar (max 20 pcs)
-                        $maxLevel = max(20, $batas * 3);
-                        $percent = min(100, max(5, (int) round(($stok / $maxLevel) * 100)));
-                        $barColor = $isHabis ? '#EF4444' : ($isMenipis ? '#F59E0B' : '#10B981');
-
-                        $pJson = json_encode($p, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
-                    ?>
-                        <tr>
-                            <td style="padding-left: 14px;">
-                                <div class="d-flex align-center gap-12">
-                                    <div class="thumb-box" style="width: 40px; height: 40px; border-radius: 8px; border: 1px solid var(--line); overflow: hidden; background: #FAFAFA; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-                                        <img src="assets/img/<?= e($p['gambar']) ?>" alt="<?= e($p['nama']) ?>" style="width: 32px; height: 32px; object-fit: contain;">
-                                    </div>
-                                    <div>
-                                        <div class="fw-600 fs-14 text-navy"><?= e($p['nama']) ?></div>
-                                    </div>
-                                </div>
-                            </td>
-                            <td class="fs-13 fw-700 <?= $isMenipis ? 'text-amber' : ($isHabis ? 'text-red' : 'text-navy') ?>">
-                                <?= $stok ?> pcs
-                            </td>
-                            <td>
-                                <div style="display: flex; align-items: center; gap: 8px;">
-                                    <div style="flex: 1; height: 6px; background: #F1F5F9; border-radius: 999px; overflow: hidden;">
-                                        <div style="height: 100%; width: <?= $percent ?>%; background: <?= $barColor ?>; border-radius: 999px;"></div>
-                                    </div>
-                                    <span class="fs-11 text-muted" style="min-width: 30px;"><?= $percent ?>%</span>
-                                </div>
-                            </td>
-                            <td>
-                                <span class="badge <?= $statusBadge ?>" style="font-size: 11.5px; padding: 2px 8px; border-radius: 4px;">
-                                    <?= e($statusText) ?>
-                                </span>
-                            </td>
-                            <td style="text-align: right; padding-right: 14px;">
-                                <div class="d-flex align-center justify-end gap-8" style="justify-content: flex-end;">
-                                    <button type="button" class="btn btn-primary btn-sm" onclick='openRestockModal(<?= $pJson ?>)' style="height: 32px; padding: 0 12px; font-size: 12.5px; font-weight: 600; border-radius: 6px;">
-                                        <?= icon('plus', 14) ?>
-                                        <span>Restock</span>
-                                    </button>
-                                    <button type="button" class="btn btn-outline btn-sm" onclick='openKoreksiModal(<?= $pJson ?>)' title="Koreksi Stok" style="height: 32px; padding: 0 10px; font-size: 12.5px; border-radius: 6px;">
-                                        <?= icon('edit', 14) ?>
-                                        <span>Koreksi</span>
-                                    </button>
-                                </div>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
-        </div>
-
-        <!-- Card List Mobile -->
-        <div class="mobile-only-orders-list">
-            <?php foreach ($paginatedProducts as $p): 
-                $stok = (int) $p['stok'];
-                $batas = (int) ($p['batas'] ?? $defaultBatas);
-                $isMenipis = ($stok <= $batas && $stok > 0);
-                $isHabis = ($stok <= 0);
-                $statusBadge = $isHabis ? 'badge-danger' : ($isMenipis ? 'badge-warning' : 'badge-success');
-                $statusText = $isHabis ? 'Habis' : ($isMenipis ? 'Menipis' : 'Aman');
-                $pJson = json_encode($p, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
-            ?>
-                <div class="order-mobile-card" style="padding: 14px; border: 1px solid var(--line); border-radius: 10px; margin-bottom: 10px; background: #fff;">
-                    <div class="d-flex justify-between align-center" style="margin-bottom: 8px;">
-                        <div class="d-flex align-center gap-10">
-                            <div class="thumb-box" style="width: 38px; height: 38px; border-radius: 8px; border: 1px solid var(--line); overflow: hidden; background: #FAFAFA; display: flex; align-items: center; justify-content: center;">
-                                <img src="assets/img/<?= e($p['gambar']) ?>" alt="<?= e($p['nama']) ?>" style="width: 28px; height: 28px; object-fit: contain;">
-                            </div>
-                            <div>
-                                <div class="fw-700 fs-14 text-navy"><?= e($p['nama']) ?></div>
-                                <div class="fs-12 text-muted"><?= e($p['kategori']) ?></div>
-                            </div>
-                        </div>
-                        <span class="badge <?= $statusBadge ?>" style="font-size: 11px; padding: 2px 8px;"><?= $statusText ?></span>
-                    </div>
-                    <div class="d-flex justify-between align-center" style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--line);">
-                        <div>
-                            <span class="fs-12 text-muted">Stok: </span>
-                            <span class="fw-700 fs-14 <?= $isMenipis ? 'text-amber' : ($isHabis ? 'text-red' : 'text-navy') ?>"><?= $stok ?> pcs</span>
-                        </div>
-                        <div class="d-flex align-center gap-8">
-                            <button type="button" class="btn btn-primary btn-sm" onclick='openRestockModal(<?= $pJson ?>)' style="padding: 4px 10px; height: 30px; font-size: 12px;">
-                                Restock
-                            </button>
-                            <button type="button" class="btn btn-outline btn-sm" onclick='openKoreksiModal(<?= $pJson ?>)' style="padding: 4px 8px; height: 30px; font-size: 12px;">
-                                Koreksi
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            <?php endforeach; ?>
-        </div>
-
-        <!-- Footer Pagination Sesuai Mockup SVG -->
-        <div class="d-flex justify-between align-center" style="margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--line); flex-wrap: wrap; gap: 12px;">
-            <span class="fs-13 text-muted">
-                Menampilkan <?= min(1, $totalItems) ?>–<?= min($totalItems, $currentPage * $perPage) ?> dari <?= $totalItems ?>
-            </span>
-            <div class="pagination-mockup">
-                <?php if ($currentPage > 1): ?>
-                    <a href="stok.php?page=<?= $currentPage - 1 ?><?= $filterStatus !== 'semua' ? '&status=' . urlencode($filterStatus) : '' ?><?= $searchQ !== '' ? '&q=' . urlencode($searchQ) : '' ?>" class="page-link-btn">‹</a>
-                <?php else: ?>
-                    <span class="page-link-btn" style="cursor: not-allowed; opacity: 0.6;">‹</span>
-                <?php endif; ?>
-
-                <?php for ($i = 1; $i <= $totalPages; $i++): ?>
-                    <a href="stok.php?page=<?= $i ?><?= $filterStatus !== 'semua' ? '&status=' . urlencode($filterStatus) : '' ?><?= $searchQ !== '' ? '&q=' . urlencode($searchQ) : '' ?>" class="page-link-btn <?= $i === $currentPage ? 'active' : '' ?>"><?= $i ?></a>
-                <?php endfor; ?>
-
-                <?php if ($currentPage < $totalPages): ?>
-                    <a href="stok.php?page=<?= $currentPage + 1 ?><?= $filterStatus !== 'semua' ? '&status=' . urlencode($filterStatus) : '' ?><?= $searchQ !== '' ? '&q=' . urlencode($searchQ) : '' ?>" class="page-link-btn">›</a>
-                <?php else: ?>
-                    <span class="page-link-btn" style="cursor: not-allowed; opacity: 0.6;">›</span>
-                <?php endif; ?>
-            </div>
-        </div>
-    <?php endif; ?>
-
-</div>
-
-<!-- ================================================================= -->
-<!-- MODAL 1: Restock Barang (Sesuai Mockup SVG #10)                    -->
-<!-- ================================================================= -->
-<div class="modal-backdrop" id="modalRestock">
-    <div class="modal-dialog" style="max-width: 460px;">
-        <form action="aksi.php" method="POST" id="formRestock">
-            <?= csrf_field() ?>
-            <input type="hidden" name="act" value="restock">
-            <input type="hidden" name="id" id="restockId" value="">
-
-            <div class="modal-header">
-                <h3 class="modal-title">Restock Barang</h3>
-                <button type="button" class="modal-close-btn" onclick="closeModal('modalRestock')" aria-label="Tutup">
-                    <?= icon('x', 20) ?>
-                </button>
-            </div>
-
-            <div class="modal-body" style="padding: 20px;">
-                
-                <!-- Info Barang Saat Ini Sesuai Mockup SVG #10 -->
-                <div class="d-flex justify-between align-center" style="background: #F8FAFC; border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; margin-bottom: 18px;">
-                    <div class="d-flex align-center gap-12">
-                        <div class="thumb-box" style="width: 42px; height: 42px; border-radius: 8px; border: 1px solid var(--line); overflow: hidden; background: #fff; display: flex; align-items: center; justify-content: center;">
-                            <img id="restockImg" src="assets/img/roti-cokelat.png" alt="Barang" style="width: 30px; height: 30px; object-fit: contain;">
-                        </div>
-                        <div>
-                            <div class="fw-700 fs-15 text-navy" id="restockNama">Roti Cokelat</div>
-                            <div class="fs-12 text-slate">Stok saat ini: <strong id="restockStokCur">3 pcs</strong></div>
-                        </div>
-                    </div>
-                    <span id="restockBadge" class="badge badge-warning" style="font-size: 11.5px; padding: 2px 8px; border-radius: 4px;">Menipis</span>
-                </div>
-
-                <!-- Input Jumlah Restock -->
-                <div class="form-group" style="margin-bottom: 12px;">
-                    <label for="restockJumlah" class="form-label" style="font-size: 13px; font-weight: 600; margin-bottom: 6px; display: block;">Jumlah Restock (pcs)</label>
-                    <input type="number" id="restockJumlah" name="jumlah" class="form-control" placeholder="0" min="1" value="20" required style="height: 40px; border-radius: 8px; font-weight: 600;" oninput="calcRestockTotal()">
-                </div>
-
-                <!-- Quick Add Chips Sesuai Mockup SVG #10: +10, +20, +50, +100 -->
-                <div style="display: flex; gap: 8px; margin-bottom: 16px;">
-                    <button type="button" class="btn btn-secondary btn-sm" style="flex: 1; height: 32px; border-radius: 6px; font-size: 12.5px; font-weight: 600;" onclick="setRestockQty(10)">+10</button>
-                    <button type="button" class="btn btn-secondary btn-sm" style="flex: 1; height: 32px; border-radius: 6px; font-size: 12.5px; font-weight: 600;" onclick="setRestockQty(20)">+20</button>
-                    <button type="button" class="btn btn-secondary btn-sm" style="flex: 1; height: 32px; border-radius: 6px; font-size: 12.5px; font-weight: 600;" onclick="setRestockQty(50)">+50</button>
-                    <button type="button" class="btn btn-secondary btn-sm" style="flex: 1; height: 32px; border-radius: 6px; font-size: 12.5px; font-weight: 600;" onclick="setRestockQty(100)">+100</button>
-                </div>
-
-                <!-- Catatan opsional -->
-                <div class="form-group" style="margin-bottom: 18px;">
-                    <label for="restockCatatan" class="form-label" style="font-size: 13px; font-weight: 600; margin-bottom: 6px; display: block;">Catatan (opsional)</label>
-                    <input type="text" id="restockCatatan" name="catatan" class="form-control" placeholder="Contoh: belanja pasar pagi" style="height: 40px; border-radius: 8px;">
-                </div>
-
-                <!-- Ringkasan Perhitungan Sesuai Mockup SVG #10 -->
-                <div style="background: #F8FAFC; border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px;">
-                    <div class="d-flex justify-between fs-13 text-slate" style="margin-bottom: 6px;">
-                        <span>Stok sekarang</span>
-                        <span id="summaryStokNow" class="fw-600 text-navy">3 pcs</span>
-                    </div>
-                    <div class="d-flex justify-between fs-13 text-slate" style="margin-bottom: 6px;">
-                        <span>Ditambah</span>
-                        <span class="text-green fw-700" id="summaryStokAdd">+20 pcs</span>
-                    </div>
-                    <div class="d-flex justify-between fs-14 fw-700 text-navy" style="padding-top: 8px; border-top: 1px dashed var(--line);">
-                        <span>Stok setelah restock</span>
-                        <span class="text-blue" id="summaryStokEnd">23 pcs</span>
-                    </div>
-                </div>
-
-            </div>
-
-            <div class="modal-footer" style="padding: 16px 20px; display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid var(--line);">
-                <button type="button" class="btn btn-secondary" onclick="closeModal('modalRestock')" style="border-radius: 8px; height: 38px; padding: 0 16px;">Batal</button>
-                <button type="submit" class="btn btn-primary" style="border-radius: 8px; height: 38px; padding: 0 20px; font-weight: 600;">Simpan Restock</button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<!-- ================================================================= -->
-<!-- MODAL 2: Koreksi Stok (Sesuai Mockup SVG #11)                      -->
-<!-- ================================================================= -->
-<div class="modal-backdrop" id="modalKoreksi">
-    <div class="modal-dialog" style="max-width: 460px;">
-        <form action="aksi.php" method="POST" id="formKoreksi">
-            <?= csrf_field() ?>
-            <input type="hidden" name="act" value="koreksi_stok">
-            <input type="hidden" name="id" id="koreksiId" value="">
-
-            <div class="modal-header">
-                <h3 class="modal-title">Koreksi Stok</h3>
-                <button type="button" class="modal-close-btn" onclick="closeModal('modalKoreksi')" aria-label="Tutup">
-                    <?= icon('x', 20) ?>
-                </button>
-            </div>
-
-            <div class="modal-body" style="padding: 20px;">
-                
-                <!-- Info Barang Tercatat Sesuai Mockup SVG #11 -->
-                <div class="d-flex justify-between align-center" style="background: #F8FAFC; border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; margin-bottom: 18px;">
-                    <div class="d-flex align-center gap-12">
-                        <div class="thumb-box" style="width: 42px; height: 42px; border-radius: 8px; border: 1px solid var(--line); overflow: hidden; background: #fff; display: flex; align-items: center; justify-content: center;">
-                            <img id="koreksiImg" src="assets/img/roti-cokelat.png" alt="Barang" style="width: 30px; height: 30px; object-fit: contain;">
-                        </div>
-                        <div>
-                            <div class="fw-700 fs-15 text-navy" id="koreksiNama">Roti Cokelat</div>
-                            <div class="fs-12 text-slate">Stok tercatat: <strong id="koreksiStokCur">3 pcs</strong></div>
-                        </div>
-                    </div>
-                    <span id="koreksiBadge" class="badge badge-warning" style="font-size: 11.5px; padding: 2px 8px; border-radius: 4px;">Menipis</span>
-                </div>
-
-                <!-- Input Stok Sebenarnya -->
-                <div class="form-group" style="margin-bottom: 12px;">
-                    <label for="koreksiStokBaru" class="form-label" style="font-size: 13px; font-weight: 600; margin-bottom: 6px; display: block;">Stok Sebenarnya (pcs)</label>
-                    <input type="number" id="koreksiStokBaru" name="stok_baru" class="form-control" min="0" value="0" required style="height: 40px; border-radius: 8px; font-weight: 600;" oninput="calcKoreksiDiff()">
-                </div>
-
-                <!-- Selisih Card Sesuai Mockup SVG #11 -->
-                <div style="background: #F8FAFC; border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
-                    <span class="fs-12 text-slate">Selisih dengan catatan</span>
-                    <span id="koreksiDiffText" class="fw-700 fs-13 text-red">0 pcs</span>
-                </div>
-
-                <!-- Alasan Koreksi (Wajib per R-33 & Mockup SVG #11) -->
-                <div class="form-group" style="margin-bottom: 14px;">
-                    <label class="form-label" style="font-size: 13px; font-weight: 600; margin-bottom: 8px; display: block;">Alasan (wajib)</label>
-                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">
-                        <label style="cursor: pointer; border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; background: #fff;" class="alasan-option">
-                            <input type="radio" name="alasan" value="Salah hitung" checked onchange="updateAlasanStyle()">
-                            <span>Salah hitung</span>
-                        </label>
-                        <label style="cursor: pointer; border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; background: #fff;" class="alasan-option">
-                            <input type="radio" name="alasan" value="Rusak" onchange="updateAlasanStyle()">
-                            <span>Rusak</span>
-                        </label>
-                        <label style="cursor: pointer; border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; background: #fff;" class="alasan-option">
-                            <input type="radio" name="alasan" value="Hilang" onchange="updateAlasanStyle()">
-                            <span>Hilang</span>
-                        </label>
-                        <label style="cursor: pointer; border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; background: #fff;" class="alasan-option">
-                            <input type="radio" name="alasan" value="Lainnya" onchange="updateAlasanStyle()">
-                            <span>Lainnya</span>
-                        </label>
-                    </div>
-                </div>
-
-                <!-- Catatan Detail -->
-                <div class="form-group" style="margin-bottom: 0;">
-                    <label for="koreksiCatatan" class="form-label" style="font-size: 13px; font-weight: 600; margin-bottom: 6px; display: block;">Catatan</label>
-                    <input type="text" id="koreksiCatatan" name="catatan_detail" class="form-control" placeholder="Contoh: barang hilang saat jam istirahat" style="height: 40px; border-radius: 8px;">
-                </div>
-
-            </div>
-
-            <div class="modal-footer" style="padding: 16px 20px; display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid var(--line);">
-                <button type="button" class="btn btn-secondary" onclick="closeModal('modalKoreksi')" style="border-radius: 8px; height: 38px; padding: 0 16px;">Batal</button>
-                <button type="submit" class="btn btn-primary" style="border-radius: 8px; height: 38px; padding: 0 20px; font-weight: 600;">Simpan Koreksi</button>
-            </div>
-        </form>
-    </div>
+    <div id="stkPanelBody" style="display:flex;flex-direction:column;flex:1;"></div>
+  </aside>
 </div>
 
 <script>
-let currentProductStock = 0;
-let koreksiOriginalStock = 0;
+document.addEventListener('DOMContentLoaded', function () {
+  const { getState, updateState, renderPagerHtml, stockStatus, stockBadge, escHtml, toast, setMobileSubheader, svgIcon } = window.KKApp;
 
-function openRestockModal(data) {
-    currentProductStock = parseInt(data.stok) || 0;
-    document.getElementById('restockId').value = data.id;
-    document.getElementById('restockNama').textContent = data.nama;
-    document.getElementById('restockStokCur').textContent = currentProductStock + ' pcs';
-    document.getElementById('restockImg').src = 'assets/img/' + (data.gambar || 'mie-instan.png');
-    
-    const batas = parseInt(data.batas) || 5;
-    const badgeEl = document.getElementById('restockBadge');
-    if (currentProductStock <= 0) {
-        badgeEl.className = 'badge badge-danger';
-        badgeEl.textContent = 'Habis';
-    } else if (currentProductStock <= batas) {
-        badgeEl.className = 'badge badge-warning';
-        badgeEl.textContent = 'Menipis';
-    } else {
-        badgeEl.className = 'badge badge-success';
-        badgeEl.textContent = 'Aman';
+  let statusFilter = <?= json_encode(in_array($initFilter, ['all', 'menipis', 'aman', 'habis'], true) ? $initFilter : 'all') ?>;
+  let searchQuery = '';
+  let page = 1;
+  let activeId = <?= json_encode($initRestock) ?>;
+  let actionMode = 'restock'; // 'restock' | 'koreksi'
+  let restockQty = 20;
+  let restockNote = '';
+  let koreksiActual = 0;
+  let koreksiReason = 'Hilang';
+  let koreksiNote = '';
+
+  const workspace = document.getElementById('stokWorkspace');
+  const listContainer = document.getElementById('stkListContainer');
+  const panelTitle = document.getElementById('stkPanelTitle');
+  const panelBody = document.getElementById('stkPanelBody');
+  const closeBtn = document.getElementById('stkPanelCloseBtn');
+  const searchInput = document.getElementById('stkSearchInput');
+
+  function getSortedFiltered() {
+    const s = getState();
+    const threshold = (s.pengaturan && s.pengaturan.batas_stok_menipis) || 5;
+    const q = searchQuery.trim().toLowerCase();
+    return (s.barang || [])
+      .filter(b => b.aktif !== false)
+      .slice()
+      .sort((a, b) => (a.stok || 0) - (b.stok || 0))
+      .filter(b => {
+        const st = stockStatus(b.stok, threshold).toLowerCase();
+        if (statusFilter !== 'all' && st !== statusFilter) return false;
+        if (q && !b.nama.toLowerCase().includes(q)) return false;
+        return true;
+      });
+  }
+
+  function updateKpis() {
+    const s = getState();
+    const threshold = (s.pengaturan && s.pengaturan.batas_stok_menipis) || 5;
+    const active = (s.barang || []).filter(b => b.aktif !== false);
+    const outCnt = active.filter(b => (b.stok || 0) <= 0).length;
+    const lowCnt = active.filter(b => (b.stok || 0) > 0 && (b.stok || 0) <= threshold).length;
+    document.getElementById('stkKpiTotal').textContent = String(active.length);
+    document.getElementById('stkKpiLow').textContent = String(lowCnt);
+    document.getElementById('stkKpiOut').textContent = String(outCnt);
+  }
+
+  function renderList() {
+    const s = getState();
+    const threshold = (s.pengaturan && s.pengaturan.batas_stok_menipis) || 5;
+    const list = getSortedFiltered();
+    const perPage = 10;
+
+    if (!list.length) {
+      listContainer.innerHTML = `<div class="empty-state-box">
+        <div class="empty-state">
+          <div class="empty-state-icon">${svgIcon('barang', 28)}</div>
+          <h3 class="empty-state-title">Tidak ada data stok</h3>
+          <p class="empty-state-desc">Tidak ada barang yang sesuai filter status stok.</p>
+        </div>
+      </div>`;
+      if (window.innerWidth >= 768) {
+        activeId = '';
+        renderPanel();
+      }
+      return;
     }
 
-    document.getElementById('restockJumlah').value = 20;
-    document.getElementById('restockCatatan').value = '';
-    
-    calcRestockTotal();
-    openModal('modalRestock');
-}
-
-function setRestockQty(val) {
-    document.getElementById('restockJumlah').value = val;
-    calcRestockTotal();
-}
-
-function calcRestockTotal() {
-    const qty = parseInt(document.getElementById('restockJumlah').value) || 0;
-    document.getElementById('summaryStokNow').textContent = currentProductStock + ' pcs';
-    document.getElementById('summaryStokAdd').textContent = '+' + qty + ' pcs';
-    document.getElementById('summaryStokEnd').textContent = (currentProductStock + qty) + ' pcs';
-}
-
-function openKoreksiModal(data) {
-    koreksiOriginalStock = parseInt(data.stok) || 0;
-    document.getElementById('koreksiId').value = data.id;
-    document.getElementById('koreksiNama').textContent = data.nama;
-    document.getElementById('koreksiStokCur').textContent = koreksiOriginalStock + ' pcs';
-    document.getElementById('koreksiImg').src = 'assets/img/' + (data.gambar || 'mie-instan.png');
-    
-    const batas = parseInt(data.batas) || 5;
-    const badgeEl = document.getElementById('koreksiBadge');
-    if (koreksiOriginalStock <= 0) {
-        badgeEl.className = 'badge badge-danger';
-        badgeEl.textContent = 'Habis';
-    } else if (koreksiOriginalStock <= batas) {
-        badgeEl.className = 'badge badge-warning';
-        badgeEl.textContent = 'Menipis';
-    } else {
-        badgeEl.className = 'badge badge-success';
-        badgeEl.textContent = 'Aman';
+    if (window.innerWidth >= 768 && (!activeId || !list.some(b => b.id === activeId))) {
+      const pref = list.find(b => b.id === 'roti-cokelat') || list[0];
+      activeId = pref ? pref.id : '';
+      if (pref) koreksiActual = Math.max(0, (pref.stok || 0) - 1);
     }
 
-    // Default stok baru = stok sekarang
-    document.getElementById('koreksiStokBaru').value = Math.max(0, koreksiOriginalStock - 1);
-    document.getElementById('koreksiCatatan').value = '';
-    calcKoreksiDiff();
-    updateAlasanStyle();
-    openModal('modalKoreksi');
-}
+    const totalPages = Math.max(1, Math.ceil(list.length / perPage));
+    page = Math.max(1, Math.min(page, totalPages));
+    const slice = list.slice((page - 1) * perPage, page * perPage);
 
-function calcKoreksiDiff() {
-    const newStock = parseInt(document.getElementById('koreksiStokBaru').value) || 0;
-    const diff = newStock - koreksiOriginalStock;
-    const diffText = (diff > 0 ? '+' : '') + diff + ' pcs (' + koreksiOriginalStock + ' → ' + newStock + ' pcs)';
-    const el = document.getElementById('koreksiDiffText');
-    el.textContent = diffText;
-    if (diff < 0) {
-        el.className = 'fw-700 fs-13 text-red';
-    } else if (diff > 0) {
-        el.className = 'fw-700 fs-13 text-green';
-    } else {
-        el.className = 'fw-700 fs-13 text-slate';
+    const deskRows = slice.map(p => {
+      const st = stockStatus(p.stok, threshold);
+      const ref = Math.max(20, p.stok_ref || 20, p.stok || 0);
+      const pct = Math.min(100, Math.round(((p.stok || 0) / ref) * 100));
+      const fillCls = st === 'Habis' ? 'progress-fill-red' : (st === 'Menipis' ? 'progress-fill-amber' : 'progress-fill-green');
+      const selCls = p.id === activeId ? ' is-selected' : '';
+      return `<tr class="${selCls}">
+        <td>
+          <div class="product-cell">
+            <img src="${escHtml(p.gambar)}" alt="${escHtml(p.nama)}" class="thumb-md">
+            <span class="product-cell-name">${escHtml(p.nama)}</span>
+          </div>
+        </td>
+        <td><strong>${p.stok} pcs</strong></td>
+        <td>
+          <div class="stock-level-cell">
+            <div class="progress-track"><div class="progress-fill ${fillCls}" style="width:${pct}%"></div></div>
+          </div>
+        </td>
+        <td>${stockBadge(st)}</td>
+        <td>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <button type="button" class="icon-btn icon-btn-outline" data-stk-koreksi="${escHtml(p.id)}" aria-label="Koreksi stok ${escHtml(p.nama)}" title="Koreksi Stok">${svgIcon('edit', 16)}</button>
+            <button type="button" class="btn btn-outline-primary btn-sm" data-stk-restock="${escHtml(p.id)}">Restock</button>
+          </div>
+        </td>
+      </tr>`;
+    }).join('');
+
+    const mobRows = slice.map(p => {
+      const st = stockStatus(p.stok, threshold);
+      const ref = Math.max(20, p.stok_ref || 20, p.stok || 0);
+      const pct = Math.min(100, Math.round(((p.stok || 0) / ref) * 100));
+      const fillCls = st === 'Habis' ? 'progress-fill-red' : (st === 'Menipis' ? 'progress-fill-amber' : 'progress-fill-green');
+      return `<div class="mobile-row-item" style="flex-direction:column;align-items:stretch;gap:10px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+          <div class="mobile-row-left">
+            <img src="${escHtml(p.gambar)}" alt="${escHtml(p.nama)}" class="thumb-lg">
+            <div class="mobile-row-meta">
+              <div class="mobile-row-title">${escHtml(p.nama)}</div>
+              <div class="mobile-row-sub" style="display:flex;align-items:center;gap:6px;margin-top:3px;">
+                <strong style="color:var(--navy);">${p.stok} pcs</strong>
+                ${stockBadge(st)}
+              </div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <button type="button" class="icon-btn icon-btn-outline" data-stk-koreksi="${escHtml(p.id)}" aria-label="Koreksi stok ${escHtml(p.nama)}">${svgIcon('edit', 15)}</button>
+            <button type="button" class="btn btn-outline-primary btn-sm" data-stk-restock="${escHtml(p.id)}" style="height:32px;padding:0 12px;">Restock</button>
+          </div>
+        </div>
+        <div class="progress-track"><div class="progress-fill ${fillCls}" style="width:${pct}%"></div></div>
+      </div>`;
+    }).join('');
+
+    listContainer.innerHTML = `
+      <div class="table-wrap desktop-only-table">
+        <table class="data-table">
+          <thead><tr><th>Barang</th><th>Stok</th><th>Level</th><th>Status</th><th>Aksi</th></tr></thead>
+          <tbody>${deskRows}</tbody>
+        </table>
+      </div>
+      <div class="mobile-card-list">${mobRows}</div>
+      ${renderPagerHtml(list.length, page, perPage, 'stkList')}`;
+
+    renderPanel();
+  }
+
+  function renderPanel() {
+    const s = getState();
+    const threshold = (s.pengaturan && s.pengaturan.batas_stok_menipis) || 5;
+    const prod = activeId ? (s.barang || []).find(b => b.id === activeId && b.aktif !== false) : null;
+
+    if (!prod) {
+      closeBtn.hidden = true;
+      panelTitle.textContent = 'Kelola Stok';
+      panelBody.innerHTML = `<div class="panel-empty-state">
+        <div class="panel-empty-icon">${svgIcon('barang', 28)}</div>
+        <p class="panel-empty-text">Pilih barang lalu tekan Restock atau Koreksi.</p>
+      </div>`;
+      return;
     }
-}
 
-function updateAlasanStyle() {
-    document.querySelectorAll('.alasan-option').forEach(label => {
-        const input = label.querySelector('input');
-        if (input.checked) {
-            label.style.borderColor = 'var(--blue)';
-            label.style.background = '#EFF6FF';
-            label.style.color = 'var(--blue)';
-        } else {
-            label.style.borderColor = 'var(--line)';
-            label.style.background = '#fff';
-            label.style.color = 'var(--navy)';
+    closeBtn.hidden = false;
+    const st = stockStatus(prod.stok, threshold);
+
+    if (actionMode === 'koreksi') {
+      panelTitle.textContent = 'Koreksi Stok';
+      const diff = koreksiActual - prod.stok;
+      const diffLabel = diff > 0 ? `+${diff} pcs` : (diff < 0 ? `−${Math.abs(diff)} pcs` : '0 pcs');
+      const reasons = ['Salah hitung', 'Rusak', 'Hilang', 'Lainnya'];
+      panelBody.innerHTML = `
+        <div class="card" style="padding:14px;display:flex;align-items:center;gap:12px;margin-bottom:18px;">
+          <img src="${escHtml(prod.gambar)}" alt="${escHtml(prod.nama)}" class="thumb-xl">
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:15px;font-weight:700;color:var(--navy);">${escHtml(prod.nama)}</div>
+            <div style="font-size:12.5px;color:var(--grey);">Stok tercatat: ${prod.stok} pcs</div>
+          </div>
+          ${stockBadge(st)}
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" id="korValLbl">Stok Sebenarnya</label>
+          <div class="stepper-box-card" aria-labelledby="korValLbl">
+            <button type="button" class="stepper-btn" id="korMinus" aria-label="Kurangi stok sebenarnya" ${koreksiActual <= 0 ? 'disabled' : ''}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14"/></svg>
+            </button>
+            <div class="stepper-val-wrap" style="flex-direction:column;align-items:center;gap:2px;">
+              <span class="stepper-val">${koreksiActual}</span>
+              <span class="stepper-unit">pcs</span>
+            </div>
+            <button type="button" class="stepper-btn stepper-btn-solid" id="korPlus" aria-label="Tambah stok sebenarnya">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="info-preview-box info-preview-amber" style="margin-top:0;">
+          <div>Selisih dengan catatan</div>
+          <div class="diff-preview-row">
+            <span class="diff-preview-delta">${diffLabel}</span>
+            <span class="diff-preview-arrow">${prod.stok} → ${koreksiActual} pcs</span>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <span class="form-label">Alasan (wajib)</span>
+          <div class="chip-group" id="korReasonChips">
+            ${reasons.map(r => `<button type="button" class="chip${koreksiReason === r ? ' is-active' : ''}" data-reason="${escHtml(r)}">${escHtml(r)}</button>`).join('')}
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="korNoteInput" class="form-label">Catatan</label>
+          <input type="text" id="korNoteInput" class="form-control" value="${escHtml(koreksiNote)}" placeholder="Contoh: barang hilang saat jam istirahat">
+        </div>
+
+        <div id="korError" class="form-error" role="alert" hidden></div>
+
+        <div class="panel-footer-actions">
+          <button type="button" class="btn btn-primary btn-lg btn-full" id="korSaveBtn">Simpan Koreksi</button>
+        </div>`;
+
+      document.getElementById('korMinus').onclick = () => { if (koreksiActual > 0) { koreksiActual--; renderPanel(); } };
+      document.getElementById('korPlus').onclick = () => { koreksiActual++; renderPanel(); };
+      document.getElementById('korReasonChips').onclick = e => {
+        const c = e.target.closest('.chip[data-reason]');
+        if (!c) return;
+        koreksiReason = c.getAttribute('data-reason');
+        renderPanel();
+      };
+      document.getElementById('korNoteInput').oninput = e => { koreksiNote = e.target.value; };
+      document.getElementById('korSaveBtn').onclick = () => {
+        const err = document.getElementById('korError');
+        if (koreksiActual === prod.stok) {
+          err.textContent = 'Stok sebenarnya sama dengan stok tercatat.';
+          err.hidden = false;
+          return;
         }
-    });
-}
-</script>
+        if (!koreksiReason) {
+          err.textContent = 'Pilih alasan koreksi.';
+          err.hidden = false;
+          return;
+        }
+        const delta = koreksiActual - prod.stok;
+        updateState(stObj => {
+          const item = (stObj.barang || []).find(b => b.id === prod.id);
+          if (item) {
+            item.stok = koreksiActual;
+            item.stok_ref = Math.max(item.stok_ref || 20, koreksiActual);
+          }
+          stObj.mutasi_stok = stObj.mutasi_stok || [];
+          stObj.mutasi_stok.unshift({
+            id: stObj.mutasi_stok.length + 1,
+            barang_id: prod.id,
+            jenis: 'koreksi',
+            perubahan: delta,
+            stok_sebelum: prod.stok,
+            stok_sesudah: koreksiActual,
+            alasan: koreksiReason,
+            catatan: koreksiNote.trim(),
+            dibuat_pada: '2026-11-24 11:00:00'
+          });
+        });
+        toast(`Stok ${prod.nama} dikoreksi ke ${koreksiActual} pcs (${koreksiReason}).`);
+        koreksiNote = '';
+        if (window.innerWidth < 768) closeMobilePanel();
+        updateKpis();
+        renderList();
+      };
+    } else {
+      panelTitle.textContent = 'Restock Barang';
+      const presets = [10, 20, 50, 100];
+      const after = prod.stok + restockQty;
+      panelBody.innerHTML = `
+        <div class="card" style="padding:14px;display:flex;align-items:center;gap:12px;margin-bottom:18px;">
+          <img src="${escHtml(prod.gambar)}" alt="${escHtml(prod.nama)}" class="thumb-xl">
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:15px;font-weight:700;color:var(--navy);">${escHtml(prod.nama)}</div>
+            <div style="font-size:12.5px;color:var(--grey);">Stok saat ini: ${prod.stok} pcs</div>
+          </div>
+          ${stockBadge(st)}
+        </div>
 
-<?php
-admin_page_end('stok');
+        <div class="form-group">
+          <span class="form-label">Jumlah Restock</span>
+          <div class="stepper-box-card">
+            <button type="button" class="stepper-btn" id="rstMinus" aria-label="Kurangi jumlah restock" ${restockQty <= 1 ? 'disabled' : ''}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14"/></svg>
+            </button>
+            <div class="stepper-val-wrap" style="flex-direction:column;align-items:center;gap:2px;">
+              <span class="stepper-val">${restockQty}</span>
+              <span class="stepper-unit">pcs</span>
+            </div>
+            <button type="button" class="stepper-btn stepper-btn-solid" id="rstPlus" aria-label="Tambah jumlah restock">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg>
+            </button>
+          </div>
+          <div class="chip-group" id="rstPresetChips">
+            ${presets.map(n => `<button type="button" class="chip${restockQty === n ? ' is-active' : ''}" data-preset="${n}">+${n}</button>`).join('')}
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="rstNoteInput" class="form-label">Catatan (opsional)</label>
+          <input type="text" id="rstNoteInput" class="form-control" value="${escHtml(restockNote)}" placeholder="Contoh: belanja pasar pagi">
+        </div>
+
+        <div class="preview-math-box">
+          <div class="preview-math-row"><span>Stok sekarang</span><strong>${prod.stok} pcs</strong></div>
+          <div class="preview-math-row"><span>Ditambah</span><strong style="color:var(--green-text);">+${restockQty} pcs</strong></div>
+          <div class="preview-math-divider"></div>
+          <div class="preview-math-total"><span>Stok setelah restock</span><span>${after} pcs</span></div>
+        </div>
+
+        <div class="panel-footer-actions">
+          <button type="button" class="btn btn-primary btn-lg btn-full" id="rstSaveBtn">Simpan Restock</button>
+        </div>`;
+
+      document.getElementById('rstMinus').onclick = () => { if (restockQty > 1) { restockQty--; renderPanel(); } };
+      document.getElementById('rstPlus').onclick = () => { restockQty++; renderPanel(); };
+      document.getElementById('rstPresetChips').onclick = e => {
+        const c = e.target.closest('.chip[data-preset]');
+        if (!c) return;
+        restockQty = parseInt(c.getAttribute('data-preset'), 10);
+        renderPanel();
+      };
+      document.getElementById('rstNoteInput').oninput = e => { restockNote = e.target.value; };
+      document.getElementById('rstSaveBtn').onclick = () => {
+        const nextStok = prod.stok + restockQty;
+        updateState(stObj => {
+          const item = (stObj.barang || []).find(b => b.id === prod.id);
+          if (item) {
+            item.stok = nextStok;
+            item.stok_ref = Math.max(item.stok_ref || 20, nextStok);
+          }
+          stObj.mutasi_stok = stObj.mutasi_stok || [];
+          stObj.mutasi_stok.unshift({
+            id: stObj.mutasi_stok.length + 1,
+            barang_id: prod.id,
+            jenis: 'restock',
+            perubahan: restockQty,
+            stok_sebelum: prod.stok,
+            stok_sesudah: nextStok,
+            alasan: null,
+            catatan: restockNote.trim() || 'Restock barang',
+            dibuat_pada: '2026-11-24 11:00:00'
+          });
+        });
+        toast(`Stok ${prod.nama} bertambah +${restockQty} pcs.`);
+        restockNote = '';
+        if (window.innerWidth < 768) closeMobilePanel();
+        updateKpis();
+        renderList();
+      };
+    }
+  }
+
+  function openMobileAction(id, mode) {
+    const prod = (getState().barang || []).find(b => b.id === id);
+    if (!prod) return;
+    activeId = id;
+    actionMode = mode;
+    if (mode === 'koreksi') {
+      koreksiActual = Math.max(0, (prod.stok || 0) - 1);
+    } else {
+      restockQty = 20;
+    }
+    renderPanel();
+    workspace.classList.add('mobile-showing-panel');
+    setMobileSubheader(mode === 'koreksi' ? 'Koreksi Stok' : 'Restock Barang', closeMobilePanel);
+  }
+
+  function closeMobilePanel() {
+    workspace.classList.remove('mobile-showing-panel');
+    setMobileSubheader(null);
+  }
+
+  document.addEventListener('click', function (e) {
+    const rsBtn = e.target.closest('[data-stk-restock]');
+    if (rsBtn) {
+      const id = rsBtn.getAttribute('data-stk-restock');
+      if (window.innerWidth < 768) {
+        openMobileAction(id, 'restock');
+      } else {
+        activeId = id;
+        actionMode = 'restock';
+        restockQty = 20;
+        renderList();
+      }
+      return;
+    }
+    const krBtn = e.target.closest('[data-stk-koreksi]');
+    if (krBtn) {
+      const id = krBtn.getAttribute('data-stk-koreksi');
+      const prod = (getState().barang || []).find(b => b.id === id);
+      if (window.innerWidth < 768) {
+        openMobileAction(id, 'koreksi');
+      } else {
+        activeId = id;
+        actionMode = 'koreksi';
+        koreksiActual = prod ? Math.max(0, (prod.stok || 0) - 1) : 0;
+        renderList();
+      }
+      return;
+    }
+    const pgBtn = e.target.closest('.pg-btn[data-page-target]');
+    if (pgBtn && !pgBtn.disabled) {
+      page = parseInt(pgBtn.getAttribute('data-page-target'), 10);
+      renderList();
+    }
+  });
+
+  closeBtn.addEventListener('click', () => { activeId = ''; renderList(); });
+
+  document.getElementById('stkFilterChips').addEventListener('click', function (e) {
+    const c = e.target.closest('.chip[data-stk-filter]');
+    if (!c) return;
+    this.querySelectorAll('.chip').forEach(x => x.classList.remove('is-active'));
+    c.classList.add('is-active');
+    statusFilter = c.getAttribute('data-stk-filter');
+    page = 1;
+    renderList();
+  });
+
+  if (searchInput) {
+    searchInput.addEventListener('input', function () {
+      searchQuery = this.value;
+      page = 1;
+      renderList();
+    });
+  }
+
+  window.addEventListener('resize', function () {
+    if (window.innerWidth >= 768 && workspace.classList.contains('mobile-showing-panel')) {
+      closeMobilePanel();
+    }
+  });
+
+  updateKpis();
+  renderList();
+  if (<?= json_encode($initRestock !== '') ?> && window.innerWidth < 768) {
+    openMobileAction(<?= json_encode($initRestock) ?>, 'restock');
+  }
+});
+</script>
+<?php admin_page_end('stok'); ?>

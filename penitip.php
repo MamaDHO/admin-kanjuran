@@ -1,599 +1,726 @@
 <?php
 declare(strict_types=1);
 
-require_once __DIR__ . '/includes/bootstrap.php';
-auth_guard();
+require_once __DIR__ . '/includes/layout.php';
+require_once __DIR__ . '/includes/ui.php';
 
-$searchQuery = trim((string) ($_GET['q'] ?? ''));
-$rekap = admin_get_penitip_rekap();
-$allPenitip = $rekap['items'];
+$emptyMode = ($_GET['empty'] ?? '') === '1';
+$bundle = mock_seed_bundle($emptyMode);
+$todayLabel = tanggal_id($bundle['pengaturan']['tanggal_demo'] ?? DEMO_TODAY);
 
-// Filter pencarian jika ada
-if ($searchQuery !== '') {
-    $qLower = strtolower($searchQuery);
-    $allPenitip = array_values(array_filter($allPenitip, function ($p) use ($qLower) {
-        if (str_contains(strtolower($p['nama']), $qLower)) return true;
-        if (str_contains(strtolower($p['hp']), $qLower)) return true;
-        if (str_contains(strtolower($p['barang_text']), $qLower)) return true;
-        return false;
-    }));
-}
+admin_page_start('Penitip', 'penitip', [
+    'seed_bundle' => $bundle,
+    'mobile_right' => 'bell',
+]);
 
-// Paginasi: 10 di desktop, 5 di mobile
-$currentPage = max(1, (int) ($_GET['page'] ?? 1));
-$perPage = 10;
-$totalItems = count($allPenitip);
-$totalPages = max(1, (int) ceil($totalItems / $perPage));
-$currentPage = min($currentPage, $totalPages);
-$offset = ($currentPage - 1) * $perPage;
-$paginatedPenitip = array_slice($allPenitip, $offset, $perPage);
-
-// Penitip terpilih untuk detail panel
-$selectedId = isset($_GET['id']) ? (int) $_GET['id'] : (!empty($allPenitip) ? $allPenitip[0]['id'] : 0);
-$selectedPenitip = null;
-foreach ($allPenitip as $p) {
-    if ($p['id'] === $selectedId) {
-        $selectedPenitip = $p;
-        break;
-    }
-}
-if (!$selectedPenitip && !empty($allPenitip)) {
-    $selectedPenitip = $allPenitip[0];
-    $selectedId = $selectedPenitip['id'];
-}
-
-// Data tambahan untuk detail panel penitip terpilih
-$penitipProducts = [];
-$penitipSetoran = [];
-$penitipSales = [];
-
-if ($selectedPenitip) {
-    $allProducts = admin_get_products();
-    foreach ($allProducts as $pr) {
-        if ((int) ($pr['penitip_id'] ?? 0) === $selectedId) {
-            $penitipProducts[] = $pr;
-        }
-    }
-    $penitipSetoran = admin_get_setoran_penitip($selectedId);
-    
-    // Pesanan terkait barang penitip ini
-    $allOrders = admin_get_orders_raw();
-    foreach ($allOrders as $ord) {
-        if (($ord['status'] ?? '') === 'paid') {
-            $hasItem = false;
-            $itemsFound = [];
-            foreach ($ord['items'] ?? [] as $it) {
-                if (isset($allProducts[$it['id']]) && (int) ($allProducts[$it['id']]['penitip_id'] ?? 0) === $selectedId) {
-                    $hasItem = true;
-                    $itemsFound[] = $it;
-                }
-            }
-            if ($hasItem) {
-                $penitipSales[] = [
-                    'trx'     => $ord['trx'] ?? ('#TRX' . str_pad((string)$ord['id'], 3, '0', STR_PAD_LEFT)),
-                    'waktu'   => date('d M Y, H:i', is_numeric($ord['dibuat']) ? (int)$ord['dibuat'] : strtotime((string)$ord['dibuat'])),
-                    'items'   => $itemsFound,
-                ];
-            }
-        }
-    }
-}
-
-admin_page_start('Penitip', 'penitip');
+render_page_header(
+    'Penitip',
+    'Kelola penitip, hak penitip, dan setoran.',
+    $todayLabel
+);
 ?>
 
-<!-- Header Desktop: Judul & Subtitle di Kiri, Tanggal di Kanan -->
-<div class="page-header-desktop">
-    <div class="d-flex justify-between align-center" style="flex-wrap: wrap; gap: 16px;">
-        <div>
-            <h1 class="page-title-lg">Penitip</h1>
-            <p class="page-subtitle-lg">Kelola penitip, hak penitip, dan setoran.</p>
-        </div>
-        <div class="page-date-badge">
-            <?= icon('calendar', 16, 'text-muted') ?>
-            <span><?= e(tanggal_hari_ini()) ?></span>
-        </div>
+<div class="split-workspace" id="penitipWorkspace">
+  <div class="split-main-col">
+    <!-- Mobile Search Input top -->
+    <div class="mobile-only" style="margin-bottom:12px;">
+      <div class="search-box">
+        <span class="search-box-icon"><?= icon('search', 18) ?></span>
+        <label for="penSearchMob" class="sr-only">Cari penitip</label>
+        <input type="search" id="penSearchMob" class="search-input" placeholder="Cari penitip...">
+      </div>
     </div>
+
+    <!-- KPI Row -->
+    <section class="kpi-grid-3" aria-label="Ringkasan Penitip">
+      <article class="kpi-card kpi-compact kpi-blue">
+        <span class="kpi-icon-circle" aria-hidden="true"><?= icon('penitip', 22) ?></span>
+        <div class="kpi-body">
+          <p class="kpi-label">Total Penitip</p>
+          <p class="kpi-value" id="penKpiCount">0</p>
+        </div>
+      </article>
+      <article class="kpi-card kpi-compact kpi-green mobile-hide">
+        <span class="kpi-icon-circle" aria-hidden="true"><?= icon('wallet', 22) ?></span>
+        <div class="kpi-body">
+          <p class="kpi-label">Total Hak Penitip</p>
+          <p class="kpi-value" id="penKpiHak">Rp 0</p>
+        </div>
+      </article>
+      <article class="kpi-card kpi-compact kpi-amber">
+        <span class="kpi-icon-circle" aria-hidden="true"><?= icon('clock', 22) ?></span>
+        <div class="kpi-body">
+          <p class="kpi-label">Sisa Dibayar</p>
+          <p class="kpi-value" id="penKpiSisa">Rp 0</p>
+        </div>
+      </article>
+    </section>
+
+    <section class="card" aria-label="Daftar Penitip">
+      <div class="filter-toolbar mobile-hide">
+        <div class="search-box">
+          <span class="search-box-icon"><?= icon('search', 18) ?></span>
+          <label for="penSearchDesk" class="sr-only">Cari penitip</label>
+          <input type="search" id="penSearchDesk" class="search-input" placeholder="Cari penitip...">
+        </div>
+        <button type="button" class="btn btn-primary btn-sm" data-open-pen-add style="height:42px;">
+          <?= icon('plus', 16) ?>
+          <span>Tambah Penitip</span>
+        </button>
+      </div>
+
+      <div id="penListContainer"></div>
+    </section>
+
+    <div class="mobile-only" style="margin-top:16px;">
+      <button type="button" class="btn btn-primary btn-lg btn-full" data-open-pen-add>
+        <?= icon('plus', 18) ?>
+        <span>Tambah Penitip</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Right Side Panel: Detail / Tambah / Edit Penitip -->
+  <aside class="split-side-panel" id="penPanel" aria-label="Panel Penitip">
+    <div class="panel-head">
+      <h2 class="panel-title" id="penPanelTitle">Detail Penitip</h2>
+      <button type="button" class="panel-close-btn" id="penPanelCloseBtn" aria-label="Tutup panel" hidden>
+        <?= icon('x', 20) ?>
+      </button>
+    </div>
+    <div id="penPanelBody" style="display:flex;flex-direction:column;flex:1;"></div>
+  </aside>
 </div>
 
-<!-- Layout Utama 2 Kolom Desktop (Kiri: KPI & Tabel, Kanan: Detail Penitip) -->
-<div class="trx-desktop-layout">
-
-    <!-- ============================================================= -->
-    <!-- KOLOM KIRI: 3 KPI Cards + Toolbar + Tabel Penitip             -->
-    <!-- ============================================================= -->
-    <div>
-        <!-- 3 KPI Cards Ringkasan -->
-        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 20px;">
-            <!-- Card 1: Total Penitip -->
-            <div class="kpi-card" style="background: #E5F0FF; border-radius: 12px; padding: 16px 18px;">
-                <div class="kpi-icon-wrap" style="background: #DBEAFE; color: var(--blue); width: 36px; height: 36px; margin-bottom: 6px;">
-                    <?= icon('penitip', 18) ?>
-                </div>
-                <div class="kpi-label" style="font-size: 13px; color: var(--slate); font-weight: 500;">Total Penitip</div>
-                <div class="kpi-value" style="font-size: 22px; font-weight: 700; color: var(--navy);"><?= $rekap['count'] ?></div>
-            </div>
-
-            <!-- Card 2: Total Hak Penitip -->
-            <div class="kpi-card" style="background: #E7F8EF; border-radius: 12px; padding: 16px 18px;">
-                <div class="kpi-icon-wrap" style="background: #D1F2DF; color: var(--green); width: 36px; height: 36px; margin-bottom: 6px;">
-                    <?= icon('wallet', 18) ?>
-                </div>
-                <div class="kpi-label" style="font-size: 13px; color: var(--slate); font-weight: 500;">Total Hak Penitip</div>
-                <div class="kpi-value" style="font-size: 22px; font-weight: 700; color: var(--navy);"><?= rupiah($rekap['total_hak']) ?></div>
-            </div>
-
-            <!-- Card 3: Sisa Dibayar -->
-            <div class="kpi-card" style="background: #FFF2DD; border-radius: 12px; padding: 16px 18px;">
-                <div class="kpi-icon-wrap" style="background: #FEE8C8; color: var(--amber); width: 36px; height: 36px; margin-bottom: 6px;">
-                    <?= icon('clock', 18) ?>
-                </div>
-                <div class="kpi-label" style="font-size: 13px; color: var(--slate); font-weight: 500;">Sisa Dibayar</div>
-                <div class="kpi-value" style="font-size: 22px; font-weight: 700; color: var(--navy);"><?= rupiah($rekap['total_sisa']) ?></div>
-            </div>
-        </div>
-
-        <!-- Card Wrapper Tabel Penitip -->
-        <div class="card" style="border-radius: 14px; padding: 22px;">
-            
-            <!-- Toolbar: Pencarian & Tambah Penitip -->
-            <div class="d-flex justify-between align-center" style="flex-wrap: wrap; gap: 12px; margin-bottom: 20px;">
-                <form action="penitip.php" method="GET" style="display: flex; gap: 8px; flex: 1; max-width: 380px;">
-                    <div class="input-icon-wrap flex-1" style="position: relative;">
-                        <span class="input-icon-left" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--grey);">
-                            <?= icon('search', 16) ?>
-                        </span>
-                        <input type="text" name="q" class="form-control" style="height: 38px; padding-left: 36px; font-size: 13.5px; border-radius: 8px; border: 1px solid var(--line);" placeholder="Cari penitip..." value="<?= e($searchQuery) ?>">
-                    </div>
-                </form>
-
-                <button type="button" class="btn btn-primary" onclick="openModal('modalTambahPenitip')" style="height: 38px; padding: 0 16px; font-size: 13.5px; font-weight: 600; border-radius: 8px; display: flex; align-items: center; gap: 6px;">
-                    <?= icon('plus', 16) ?>
-                    <span>Tambah Penitip</span>
-                </button>
-            </div>
-
-            <!-- Tabel Penitip Desktop -->
-            <?php if (empty($paginatedPenitip)): ?>
-                <div class="empty-state" style="padding: 48px 20px; text-align: center;">
-                    <div class="empty-icon-wrap" style="width: 56px; height: 56px; border-radius: 50%; background: #F1F5F9; color: var(--slate); display: flex; align-items: center; justify-content: center; margin: 0 auto 14px;">
-                        <?= icon('penitip', 28) ?>
-                    </div>
-                    <div class="fw-700 fs-16 text-navy" style="margin-bottom: 4px;">Belum ada penitip</div>
-                    <div class="fs-13 text-slate" style="max-width: 320px; margin: 0 auto 16px;">
-                        Tambahkan penitip untuk mulai mencatat barang titipan dan komisinya.
-                    </div>
-                    <button type="button" class="btn btn-primary" onclick="openModal('modalTambahPenitip')" style="border-radius: 8px; padding: 8px 18px; font-size: 13px;">
-                        Tambah Penitip
-                    </button>
-                </div>
-            <?php else: ?>
-                <div class="table-responsive desktop-table-wrap">
-                    <table class="data-table">
-                        <thead>
-                            <tr class="table-header-mockup">
-                                <th style="padding-left: 14px;">Penitip</th>
-                                <th>Barang</th>
-                                <th>Terjual</th>
-                                <th>Hak</th>
-                                <th>Dibayar</th>
-                                <th style="text-align: right; padding-right: 14px;">Sisa</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php foreach ($paginatedPenitip as $p): 
-                                $isSelected = ($selectedPenitip && $selectedPenitip['id'] === $p['id']);
-                                $initials = strtoupper(substr($p['nama'], 0, 2));
-                            ?>
-                                <tr class="interactive-row <?= $isSelected ? 'row-selected' : '' ?>" 
-                                    onclick="window.location.href='penitip.php?id=<?= $p['id'] ?><?= $searchQuery !== '' ? '&q=' . urlencode($searchQuery) : '' ?>'" 
-                                    style="cursor: pointer; <?= $isSelected ? 'background: #F0F6FF;' : '' ?>">
-                                    <td style="padding-left: 14px;">
-                                        <div class="d-flex align-center gap-10">
-                                            <div class="avatar-circle" style="background: <?= $p['id'] % 2 === 1 ? '#6366F1' : '#0EA5E9' ?>; color: #fff; width: 34px; height: 34px; font-size: 12px; font-weight: 700; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
-                                                <?= e($initials) ?>
-                                            </div>
-                                            <div>
-                                                <div class="fw-600 fs-14 text-navy"><?= e($p['nama']) ?></div>
-                                                <div class="fs-12 text-muted"><?= e($p['hp']) ?></div>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td class="fs-13 text-slate"><?= e($p['barang_text']) ?></td>
-                                    <td class="fs-13 text-navy fw-600"><?= $p['terjual'] ?> item</td>
-                                    <td class="fs-13 text-navy fw-600"><?= rupiah($p['hak']) ?></td>
-                                    <td class="fs-13 text-slate"><?= rupiah($p['dibayar']) ?></td>
-                                    <td style="text-align: right; padding-right: 14px;">
-                                        <span class="fw-700 fs-13 text-blue"><?= rupiah($p['sisa_hak']) ?></span>
-                                    </td>
-                                </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                </div>
-
-                <!-- Card List Mobile -->
-                <div class="mobile-only-orders-list">
-                    <?php foreach ($paginatedPenitip as $p): 
-                        $initials = strtoupper(substr($p['nama'], 0, 2));
-                    ?>
-                        <div class="order-mobile-card" onclick="window.location.href='penitip.php?id=<?= $p['id'] ?><?= $searchQuery !== '' ? '&q=' . urlencode($searchQuery) : '' ?>'" style="cursor: pointer; padding: 14px; border: 1px solid var(--line); border-radius: 10px; margin-bottom: 10px; background: #fff;">
-                            <div class="d-flex justify-between align-center" style="margin-bottom: 8px;">
-                                <div class="d-flex align-center gap-10">
-                                    <div class="avatar-circle" style="background: <?= $p['id'] % 2 === 1 ? '#6366F1' : '#0EA5E9' ?>; color: #fff; width: 36px; height: 36px; font-size: 13px; font-weight: 700; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
-                                        <?= e($initials) ?>
-                                    </div>
-                                    <div>
-                                        <div class="fw-700 fs-14 text-navy"><?= e($p['nama']) ?></div>
-                                        <div class="fs-12 text-muted"><?= e($p['barang_text']) ?> · <?= e($p['hp']) ?></div>
-                                    </div>
-                                </div>
-                                <div style="text-align: right;">
-                                    <div class="fs-11 text-muted">Sisa</div>
-                                    <div class="fw-700 fs-14 text-blue"><?= rupiah($p['sisa_hak']) ?></div>
-                                </div>
-                            </div>
-                        </div>
-                    <?php endforeach; ?>
-                </div>
-
-                <!-- Footer Pagination -->
-                <div class="d-flex justify-between align-center" style="margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--line); flex-wrap: wrap; gap: 12px;">
-                    <span class="fs-13 text-muted">
-                        Menampilkan <?= min(1, $totalItems) ?>–<?= min($totalItems, $currentPage * $perPage) ?> dari <?= $totalItems ?>
-                    </span>
-                    <div class="pagination-mockup">
-                        <?php if ($currentPage > 1): ?>
-                            <a href="penitip.php?page=<?= $currentPage - 1 ?><?= $searchQuery !== '' ? '&q=' . urlencode($searchQuery) : '' ?>" class="page-link-btn">‹</a>
-                        <?php else: ?>
-                            <span class="page-link-btn" style="cursor: not-allowed; opacity: 0.6;">‹</span>
-                        <?php endif; ?>
-
-                        <?php for ($i = 1; $i <= $totalPages; $i++): ?>
-                            <a href="penitip.php?page=<?= $i ?><?= $searchQuery !== '' ? '&q=' . urlencode($searchQuery) : '' ?>" class="page-link-btn <?= $i === $currentPage ? 'active' : '' ?>"><?= $i ?></a>
-                        <?php endfor; ?>
-
-                        <?php if ($currentPage < $totalPages): ?>
-                            <a href="penitip.php?page=<?= $currentPage + 1 ?><?= $searchQuery !== '' ? '&q=' . urlencode($searchQuery) : '' ?>" class="page-link-btn">›</a>
-                        <?php else: ?>
-                            <span class="page-link-btn" style="cursor: not-allowed; opacity: 0.6;">›</span>
-                        <?php endif; ?>
-                    </div>
-                </div>
-            <?php endif; ?>
-
-        </div>
+<!-- Modal Catat Setoran -->
+<div class="modal-backdrop" id="setoranModalBackdrop" hidden>
+  <div class="modal-card modal-card-left" role="dialog" aria-modal="true" aria-labelledby="setoranModalTitle" style="max-width:410px;">
+    <div class="panel-head" style="margin-bottom:14px;">
+      <h2 class="panel-title" id="setoranModalTitle">Catat Setoran</h2>
+      <button type="button" class="panel-close-btn" id="setoranModalClose" aria-label="Tutup modal setoran">
+        <?= icon('x', 20) ?>
+      </button>
     </div>
 
-    <!-- ============================================================= -->
-    <!-- KOLOM KANAN: Panel Detail Penitip Desktop                     -->
-    <!-- ============================================================= -->
-    <div class="card" id="desktopDetailPanel" style="position: sticky; top: 20px; border-radius: 14px; padding: 22px; height: fit-content;">
-        <div class="d-flex justify-between align-center" style="margin-bottom: 20px;">
-            <h3 class="card-title" style="margin: 0; font-size: 18px; font-weight: 700; color: var(--navy);">Detail Penitip</h3>
+    <div id="setoranPenBanner" class="card" style="background:var(--tint);border:0;padding:12px 14px;display:flex;align-items:center;gap:12px;margin-bottom:16px;"></div>
+
+    <form id="setoranForm" novalidate>
+      <div class="form-group">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+          <label for="setoranAmountInput" class="form-label" style="margin:0;">Jumlah Setoran</label>
+          <button type="button" class="chip" id="setoranFillFullBtn" style="height:26px;padding:0 10px;font-size:11.5px;background:var(--blue-light);color:var(--blue-dark);">Isi sesuai sisa</button>
         </div>
+        <input type="number" id="setoranAmountInput" class="form-control" min="100" step="500" required>
+      </div>
 
-        <?php if ($selectedPenitip): 
-            $initials = strtoupper(substr($selectedPenitip['nama'], 0, 2));
-        ?>
-            <!-- Header Profil Penitip -->
-            <div class="d-flex justify-between align-center" style="margin-bottom: 18px; padding-bottom: 16px; border-bottom: 1px solid var(--line);">
-                <div class="d-flex align-center gap-12">
-                    <div class="avatar-circle" style="background: <?= $selectedPenitip['id'] % 2 === 1 ? '#6366F1' : '#0EA5E9' ?>; color: #fff; width: 44px; height: 44px; font-size: 16px; font-weight: 700; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
-                        <?= e($initials) ?>
-                    </div>
-                    <div>
-                        <div class="fw-700 fs-16 text-navy"><?= e($selectedPenitip['nama']) ?></div>
-                        <div class="fs-12 text-muted"><?= e($selectedPenitip['hp']) ?></div>
-                    </div>
-                </div>
-                <span class="badge badge-success" style="font-size: 12px; padding: 4px 10px; border-radius: 20px;">Aktif</span>
-            </div>
+      <div class="form-group">
+        <label for="setoranDateInput" class="form-label">Tanggal</label>
+        <input type="date" id="setoranDateInput" class="form-control" required>
+      </div>
 
-            <!-- 4 Metrik Ringkasan Penitip Sesuai Mockup SVG -->
-            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 20px;">
-                <div style="background: #F8FAFC; border: 1px solid var(--line); border-radius: 10px; padding: 12px;">
-                    <div class="fs-12 text-slate" style="margin-bottom: 4px;">Total Terjual</div>
-                    <div class="fs-16 fw-700 text-navy"><?= $selectedPenitip['terjual'] ?> item</div>
-                </div>
-                <div style="background: #F8FAFC; border: 1px solid var(--line); border-radius: 10px; padding: 12px;">
-                    <div class="fs-12 text-slate" style="margin-bottom: 4px;">Hak Penitip</div>
-                    <div class="fs-16 fw-700 text-navy"><?= rupiah($selectedPenitip['hak']) ?></div>
-                </div>
-                <div style="background: #F8FAFC; border: 1px solid var(--line); border-radius: 10px; padding: 12px;">
-                    <div class="fs-12 text-slate" style="margin-bottom: 4px;">Sudah Dibayar</div>
-                    <div class="fs-16 fw-700 text-slate"><?= rupiah($selectedPenitip['dibayar']) ?></div>
-                </div>
-                <div style="background: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 10px; padding: 12px;">
-                    <div class="fs-12 text-blue fw-600" style="margin-bottom: 4px;">Sisa Dibayar</div>
-                    <div class="fs-16 fw-700 text-blue"><?= rupiah($selectedPenitip['sisa_hak']) ?></div>
-                </div>
-            </div>
+      <div class="form-group">
+        <label for="setoranNoteInput" class="form-label">Catatan (opsional)</label>
+        <input type="text" id="setoranNoteInput" class="form-control" placeholder="Contoh: setoran mingguan">
+      </div>
 
-            <!-- Tab Navigasi: Barang | Penjualan | Setoran -->
-            <div class="d-flex align-center gap-8" style="margin-bottom: 16px; border-bottom: 1px solid var(--line); padding-bottom: 8px;">
-                <button type="button" class="btn-penitip-tab active" data-target="tabContentBarang" style="background: none; border: none; font-size: 13.5px; font-weight: 600; color: var(--blue); padding: 6px 12px; cursor: pointer; border-bottom: 2px solid var(--blue); margin-bottom: -9px;">
-                    Barang
-                </button>
-                <button type="button" class="btn-penitip-tab" data-target="tabContentPenjualan" style="background: none; border: none; font-size: 13.5px; font-weight: 500; color: var(--slate); padding: 6px 12px; cursor: pointer;">
-                    Penjualan
-                </button>
-                <button type="button" class="btn-penitip-tab" data-target="tabContentSetoran" style="background: none; border: none; font-size: 13.5px; font-weight: 500; color: var(--slate); padding: 6px 12px; cursor: pointer;">
-                    Setoran
-                </button>
-            </div>
+      <div class="preview-math-box" id="setoranMathBox"></div>
+      <div id="setoranError" class="form-error" role="alert" hidden></div>
 
-            <!-- Isi Tab 1: Barang Titipan -->
-            <div id="tabContentBarang" class="penitip-tab-pane">
-                <?php if (empty($penitipProducts)): ?>
-                    <div class="text-center text-muted fs-13" style="padding: 24px 0;">Belum ada barang titipan terdaftar.</div>
-                <?php else: ?>
-                    <div style="display: flex; flex-direction: column; gap: 10px;">
-                        <?php foreach ($penitipProducts as $pr): 
-                            $komisi = (int) ($pr['komisi'] ?? 0);
-                            $hakSatuan = max(0, (int) $pr['harga'] - $komisi);
-                        ?>
-                            <div style="border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; display: flex; align-items: center; justify-content: space-between;">
-                                <div>
-                                    <div class="fw-600 fs-13 text-navy"><?= e($pr['nama']) ?></div>
-                                    <div class="fs-12 text-muted">Harga: <?= rupiah($pr['harga']) ?> · Komisi: <?= rupiah($komisi) ?></div>
-                                </div>
-                                <div style="text-align: right;">
-                                    <div class="fs-11 text-muted">Penitip terima</div>
-                                    <div class="fw-700 fs-13 text-green"><?= rupiah($hakSatuan) ?></div>
-                                </div>
-                            </div>
-                        <?php endforeach; ?>
-                    </div>
-                <?php endif; ?>
-            </div>
-
-            <!-- Isi Tab 2: Penjualan -->
-            <div id="tabContentPenjualan" class="penitip-tab-pane" style="display: none;">
-                <?php if (empty($penitipSales)): ?>
-                    <div class="text-center text-muted fs-13" style="padding: 24px 0;">Belum ada riwayat penjualan barang.</div>
-                <?php else: ?>
-                    <div style="display: flex; flex-direction: column; gap: 10px;">
-                        <?php foreach ($penitipSales as $sl): ?>
-                            <div style="border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px;">
-                                <div class="d-flex justify-between align-center" style="margin-bottom: 4px;">
-                                    <span class="fw-600 fs-13 text-navy"><?= e($sl['trx']) ?></span>
-                                    <span class="fs-11 text-muted"><?= e($sl['waktu']) ?></span>
-                                </div>
-                                <?php foreach ($sl['items'] as $sit): ?>
-                                    <div class="d-flex justify-between fs-12 text-slate">
-                                        <span><?= e($sit['nama']) ?> × <?= (int) $sit['qty'] ?></span>
-                                        <span><?= rupiah($sit['harga'] * $sit['qty']) ?></span>
-                                    </div>
-                                <?php endforeach; ?>
-                            </div>
-                        <?php endforeach; ?>
-                    </div>
-                <?php endif; ?>
-            </div>
-
-            <!-- Isi Tab 3: Riwayat Setoran Sesuai Mockup SVG -->
-            <div id="tabContentSetoran" class="penitip-tab-pane" style="display: none;">
-                <?php if (empty($penitipSetoran)): ?>
-                    <div class="text-center text-muted fs-13" style="padding: 24px 0;">Belum ada riwayat setoran.</div>
-                <?php else: ?>
-                    <div style="display: flex; flex-direction: column; gap: 10px;">
-                        <?php foreach ($penitipSetoran as $st): ?>
-                            <div style="border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; display: flex; align-items: center; justify-content: space-between;">
-                                <div>
-                                    <div class="fw-600 fs-13 text-navy"><?= date('d M Y', strtotime($st['tanggal'])) ?></div>
-                                    <div class="fs-12 text-muted"><?= e($st['catatan'] ?: 'Setoran') ?></div>
-                                </div>
-                                <div class="fw-700 fs-13 text-green">
-                                    <?= rupiah($st['jumlah']) ?>
-                                </div>
-                            </div>
-                        <?php endforeach; ?>
-                    </div>
-                <?php endif; ?>
-            </div>
-
-            <!-- Tombol Aksi di Bawah Detail Sesuai Mockup SVG -->
-            <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--line); display: flex; gap: 10px; flex-wrap: wrap;">
-                <button type="button" class="btn btn-primary flex-1" onclick="openModal('modalCatatSetoran')" style="font-size: 13.5px; font-weight: 600; height: 40px; border-radius: 8px;">
-                    Catat Setoran
-                </button>
-                <button type="button" class="btn btn-secondary" onclick="openEditPenitip(<?= htmlspecialchars(json_encode($selectedPenitip), ENT_QUOTES) ?>)" style="font-size: 13.5px; height: 40px; border-radius: 8px;">
-                    <?= icon('edit', 16) ?>
-                </button>
-                <?php 
-                $canDelete = empty($penitipProducts);
-                ?>
-                <form action="aksi.php?act=hapus_penitip" method="POST" onsubmit="return confirm('Apakah Anda yakin ingin menghapus penitip <?= e($selectedPenitip['nama']) ?>?');" style="margin: 0;">
-                    <?= csrf_field() ?>
-                    <input type="hidden" name="id" value="<?= $selectedPenitip['id'] ?>">
-                    <button type="submit" class="btn btn-danger" style="font-size: 13.5px; height: 40px; border-radius: 8px;" <?= !$canDelete ? 'disabled title="Penitip memiliki barang terkait dan tidak dapat dihapus (R-27)"' : '' ?>>
-                        <?= icon('trash', 16) ?>
-                    </button>
-                </form>
-            </div>
-
-        <?php else: ?>
-            <div class="empty-state" style="padding: 40px 20px; text-align: center;">
-                <div class="empty-icon-wrap" style="width: 48px; height: 48px; border-radius: 50%; background: #F1F5F9; color: var(--slate); display: flex; align-items: center; justify-content: center; margin: 0 auto 12px;">
-                    <?= icon('info', 24) ?>
-                </div>
-                <div class="fw-600 fs-15 text-navy" style="margin-bottom: 4px;">Pilih penitip</div>
-                <div class="fs-13 text-slate">Pilih salah satu penitip dari tabel untuk melihat detailnya.</div>
-            </div>
-        <?php endif; ?>
-
-    </div>
-
+      <div class="modal-actions" style="margin-top:16px;">
+        <button type="button" class="btn btn-outline btn-lg" id="setoranCancelBtn">Batal</button>
+        <button type="submit" class="btn btn-primary btn-lg" style="flex:1.4;">Simpan Setoran</button>
+      </div>
+    </form>
+  </div>
 </div>
-
-<!-- ================================================================= -->
-<!-- MODAL 1: Tambah Penitip (Sesuai Mockup SVG #13)                    -->
-<!-- ================================================================= -->
-<div class="modal-backdrop" id="modalTambahPenitip">
-    <div class="modal-dialog" style="max-width: 460px;">
-        <div class="modal-header">
-            <h3 class="modal-title">Tambah Penitip</h3>
-            <button type="button" class="modal-close-btn" onclick="closeModal('modalTambahPenitip')">
-                <?= icon('x', 20) ?>
-            </button>
-        </div>
-        <form action="aksi.php?act=tambah_penitip" method="POST">
-            <?= csrf_field() ?>
-            <div class="modal-body" style="padding: 20px;">
-                <div class="form-group" style="margin-bottom: 16px;">
-                    <label class="form-label" style="font-size: 13px; font-weight: 600; margin-bottom: 6px; display: block;">Nama Penitip</label>
-                    <input type="text" name="nama" class="form-control" placeholder="Contoh: Bu Sari" required style="height: 40px; border-radius: 8px;">
-                </div>
-                <div class="form-group" style="margin-bottom: 16px;">
-                    <label class="form-label" style="font-size: 13px; font-weight: 600; margin-bottom: 6px; display: block;">No. HP</label>
-                    <input type="text" name="hp" class="form-control" placeholder="08xx-xxxx-xxxx" required style="height: 40px; border-radius: 8px;">
-                </div>
-                <div class="form-group" style="margin-bottom: 0;">
-                    <label class="form-label" style="font-size: 13px; font-weight: 600; margin-bottom: 6px; display: block;">Catatan (opsional)</label>
-                    <textarea name="catatan" class="form-control" rows="3" placeholder="Contoh: titip keripik tiap Senin" style="border-radius: 8px; resize: vertical;"></textarea>
-                </div>
-            </div>
-            <div class="modal-footer" style="padding: 16px 20px; display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid var(--line);">
-                <button type="button" class="btn btn-secondary" onclick="closeModal('modalTambahPenitip')" style="border-radius: 8px; height: 38px; padding: 0 16px;">Batal</button>
-                <button type="submit" class="btn btn-primary" style="border-radius: 8px; height: 38px; padding: 0 20px; font-weight: 600;">Simpan</button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<!-- ================================================================= -->
-<!-- MODAL 2: Edit Penitip                                             -->
-<!-- ================================================================= -->
-<div class="modal-backdrop" id="modalEditPenitip">
-    <div class="modal-dialog" style="max-width: 460px;">
-        <div class="modal-header">
-            <h3 class="modal-title">Edit Penitip</h3>
-            <button type="button" class="modal-close-btn" onclick="closeModal('modalEditPenitip')">
-                <?= icon('x', 20) ?>
-            </button>
-        </div>
-        <form action="aksi.php?act=edit_penitip" method="POST">
-            <?= csrf_field() ?>
-            <input type="hidden" name="id" id="editPenitipId">
-            <div class="modal-body" style="padding: 20px;">
-                <div class="form-group" style="margin-bottom: 16px;">
-                    <label class="form-label" style="font-size: 13px; font-weight: 600; margin-bottom: 6px; display: block;">Nama Penitip</label>
-                    <input type="text" name="nama" id="editPenitipNama" class="form-control" required style="height: 40px; border-radius: 8px;">
-                </div>
-                <div class="form-group" style="margin-bottom: 16px;">
-                    <label class="form-label" style="font-size: 13px; font-weight: 600; margin-bottom: 6px; display: block;">No. HP</label>
-                    <input type="text" name="hp" id="editPenitipHp" class="form-control" required style="height: 40px; border-radius: 8px;">
-                </div>
-                <div class="form-group" style="margin-bottom: 0;">
-                    <label class="form-label" style="font-size: 13px; font-weight: 600; margin-bottom: 6px; display: block;">Catatan (opsional)</label>
-                    <textarea name="catatan" id="editPenitipCatatan" class="form-control" rows="3" style="border-radius: 8px; resize: vertical;"></textarea>
-                </div>
-            </div>
-            <div class="modal-footer" style="padding: 16px 20px; display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid var(--line);">
-                <button type="button" class="btn btn-secondary" onclick="closeModal('modalEditPenitip')" style="border-radius: 8px; height: 38px; padding: 0 16px;">Batal</button>
-                <button type="submit" class="btn btn-primary" style="border-radius: 8px; height: 38px; padding: 0 20px; font-weight: 600;">Simpan Perubahan</button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<!-- ================================================================= -->
-<!-- MODAL 3: Catat Setoran (Sesuai Mockup SVG #14)                     -->
-<!-- ================================================================= -->
-<?php if ($selectedPenitip): 
-    $initials = strtoupper(substr($selectedPenitip['nama'], 0, 2));
-?>
-<div class="modal-backdrop" id="modalCatatSetoran">
-    <div class="modal-dialog" style="max-width: 460px;">
-        <div class="modal-header">
-            <h3 class="modal-title">Catat Setoran</h3>
-            <button type="button" class="modal-close-btn" onclick="closeModal('modalCatatSetoran')">
-                <?= icon('x', 20) ?>
-            </button>
-        </div>
-        <form action="aksi.php?act=catat_setoran" method="POST">
-            <?= csrf_field() ?>
-            <input type="hidden" name="penitip_id" value="<?= $selectedPenitip['id'] ?>">
-            <div class="modal-body" style="padding: 20px;">
-                
-                <!-- Info Penitip Header di Modal Sesuai Mockup SVG #14 -->
-                <div style="background: #F8FAFC; border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; margin-bottom: 18px; display: flex; align-items: center; gap: 12px;">
-                    <div class="avatar-circle" style="background: <?= $selectedPenitip['id'] % 2 === 1 ? '#6366F1' : '#0EA5E9' ?>; color: #fff; width: 38px; height: 38px; font-size: 13px; font-weight: 700; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
-                        <?= e($initials) ?>
-                    </div>
-                    <div>
-                        <div class="fw-700 fs-14 text-navy"><?= e($selectedPenitip['nama']) ?></div>
-                        <div class="fs-12 text-slate">Sisa yang harus dibayar: <strong class="text-blue"><?= rupiah($selectedPenitip['sisa_hak']) ?></strong></div>
-                    </div>
-                </div>
-
-                <div class="form-group" style="margin-bottom: 16px;">
-                    <label class="form-label" style="font-size: 13px; font-weight: 600; margin-bottom: 6px; display: block;">Jumlah Setoran (Rp)</label>
-                    <input type="number" name="jumlah" class="form-control" min="1000" max="<?= max(1, $selectedPenitip['sisa_hak']) ?>" value="<?= $selectedPenitip['sisa_hak'] ?>" required style="height: 40px; border-radius: 8px; font-weight: 600;">
-                    <span class="fs-11 text-muted" style="display: block; margin-top: 4px;">Maksimal setoran: <?= rupiah($selectedPenitip['sisa_hak']) ?> (R-26)</span>
-                </div>
-
-                <div class="form-group" style="margin-bottom: 16px;">
-                    <label class="form-label" style="font-size: 13px; font-weight: 600; margin-bottom: 6px; display: block;">Tanggal</label>
-                    <input type="date" name="tanggal" class="form-control" value="<?= date('Y-m-d') ?>" required style="height: 40px; border-radius: 8px;">
-                </div>
-
-                <div class="form-group" style="margin-bottom: 0;">
-                    <label class="form-label" style="font-size: 13px; font-weight: 600; margin-bottom: 6px; display: block;">Catatan (opsional)</label>
-                    <input type="text" name="catatan" class="form-control" placeholder="Contoh: setoran mingguan" style="height: 40px; border-radius: 8px;">
-                </div>
-
-            </div>
-            <div class="modal-footer" style="padding: 16px 20px; display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid var(--line);">
-                <button type="button" class="btn btn-secondary" onclick="closeModal('modalCatatSetoran')" style="border-radius: 8px; height: 38px; padding: 0 16px;">Batal</button>
-                <button type="submit" class="btn btn-primary" style="border-radius: 8px; height: 38px; padding: 0 20px; font-weight: 600;" <?= $selectedPenitip['sisa_hak'] <= 0 ? 'disabled' : '' ?>>
-                    Simpan Setoran
-                </button>
-            </div>
-        </form>
-    </div>
-</div>
-<?php endif; ?>
 
 <script>
-document.addEventListener('DOMContentLoaded', () => {
-    // Interaktivitas tab di panel detail
-    const tabBtns = document.querySelectorAll('.btn-penitip-tab');
-    const tabPanes = document.querySelectorAll('.penitip-tab-pane');
+document.addEventListener('DOMContentLoaded', function () {
+  const { getState, updateState, renderPagerHtml, escHtml, rupiah, formatShortDate, toast, setMobileSubheader, svgIcon } = window.KKApp;
 
-    tabBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-            tabBtns.forEach(b => {
-                b.style.color = 'var(--slate)';
-                b.style.fontWeight = '500';
-                b.style.borderBottom = 'none';
-                b.style.marginBottom = '0';
-            });
-            tabPanes.forEach(p => p.style.display = 'none');
+  let searchQuery = '';
+  let page = 1;
+  let subPage = 1;
+  let selectedId = '';
+  let panelMode = 'detail'; // 'detail' | 'add' | 'edit'
+  let activeTab = 'setoran'; // 'barang' | 'penjualan' | 'setoran'
+  let userClosedDetail = false;
+  let activeSetoranPen = null;
 
-            btn.style.color = 'var(--blue)';
-            btn.style.fontWeight = '600';
-            btn.style.borderBottom = '2px solid var(--blue)';
-            btn.style.marginBottom = '-9px';
+  const workspace = document.getElementById('penitipWorkspace');
+  const listContainer = document.getElementById('penListContainer');
+  const panelTitle = document.getElementById('penPanelTitle');
+  const panelBody = document.getElementById('penPanelBody');
+  const closeBtn = document.getElementById('penPanelCloseBtn');
+  const searchDesk = document.getElementById('penSearchDesk');
+  const searchMob = document.getElementById('penSearchMob');
 
-            const targetId = btn.getAttribute('data-target');
-            const targetPane = document.getElementById(targetId);
-            if (targetPane) {
-                targetPane.style.display = 'block';
-            }
-        });
+  const setoranBackdrop = document.getElementById('setoranModalBackdrop');
+  const setoranBanner = document.getElementById('setoranPenBanner');
+  const setoranAmtEl = document.getElementById('setoranAmountInput');
+  const setoranDateEl = document.getElementById('setoranDateInput');
+  const setoranNoteEl = document.getElementById('setoranNoteInput');
+  const setoranMathBox = document.getElementById('setoranMathBox');
+  const setoranErr = document.getElementById('setoranError');
+
+  function makeInitials(name) {
+    const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+    if (!parts.length) return 'PN';
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+  }
+
+  function computeLedger(p) {
+    const s = getState();
+    const linked = (s.barang || []).filter(b => b.penitip_id === p.id && b.aktif !== false);
+    const deposits = (s.setoran || []).filter(st => st.penitip_id === p.id);
+    const paid = deposits.reduce((a, st) => a + (st.jumlah || 0), 0);
+    const hak = Number(p.hak_siklus || 0);
+    const terjual = Number(p.terjual_siklus || 0);
+    const sisa = Math.max(0, hak - paid);
+
+    // Kumpulkan riwayat penjualan item milik penitip dari pesanan lunas
+    const sales = [];
+    (s.pesanan || []).forEach(ord => {
+      if (ord.status !== 'lunas') return;
+      (ord.items || []).forEach(it => {
+        if (it.penitip_id === p.id) {
+          const hakPerItem = Math.max(0, (it.harga_satuan || 0) - (it.komisi_satuan || 0));
+          sales.push({
+            kode: ord.kode,
+            tanggal: ord.tanggal,
+            waktu: ord.waktu,
+            barang: it.nama,
+            qty: it.qty,
+            hak: hakPerItem * it.qty
+          });
+        }
+      });
     });
+
+    return { linked, deposits, terjual, hak, paid, sisa, sales };
+  }
+
+  function updateKpis() {
+    const s = getState();
+    const list = s.penitip || [];
+    let totalHak = 0, totalSisa = 0;
+    list.forEach(p => {
+      const lg = computeLedger(p);
+      totalHak += lg.hak;
+      totalSisa += lg.sisa;
+    });
+    document.getElementById('penKpiCount').textContent = String(list.length);
+    document.getElementById('penKpiHak').textContent = rupiah(totalHak);
+    document.getElementById('penKpiSisa').textContent = rupiah(totalSisa);
+  }
+
+  function getFiltered() {
+    const q = searchQuery.trim().toLowerCase();
+    return (getState().penitip || []).filter(p => {
+      if (!q) return true;
+      return (p.nama || '').toLowerCase().includes(q) || (p.no_hp || '').toLowerCase().includes(q);
+    });
+  }
+
+  function renderList() {
+    const list = getFiltered();
+    const perPage = 10;
+
+    if (!list.length) {
+      listContainer.innerHTML = `<div class="empty-state-box">
+        <div class="empty-state">
+          <div class="empty-state-icon">${svgIcon('penitip', 28)}</div>
+          <h3 class="empty-state-title">Belum ada penitip</h3>
+          <p class="empty-state-desc">Tambahkan penitip untuk mulai mencatat barang titipan dan komisinya.</p>
+        </div>
+      </div>`;
+      if (window.innerWidth >= 768 && panelMode === 'detail') {
+        selectedId = '';
+        renderPanel();
+      }
+      return;
+    }
+
+    if (window.innerWidth >= 768 && panelMode === 'detail' && !userClosedDetail && (!selectedId || !list.some(p => p.id === selectedId))) {
+      selectedId = list[0].id;
+    }
+
+    const totalPages = Math.max(1, Math.ceil(list.length / perPage));
+    page = Math.max(1, Math.min(page, totalPages));
+    const slice = list.slice((page - 1) * perPage, page * perPage);
+
+    const deskRows = slice.map(p => {
+      const lg = computeLedger(p);
+      const barangNames = lg.linked.map(b => b.nama).join(', ') || '—';
+      const sel = p.id === selectedId && panelMode !== 'add' ? ' is-selected' : '';
+      return `<tr class="is-clickable${sel}" data-pen-id="${escHtml(p.id)}">
+        <td>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span class="avatar-initials">${escHtml(p.kode || makeInitials(p.nama))}</span>
+            <div style="min-width:0;">
+              <div style="font-weight:600;color:var(--navy);white-space:nowrap;">${escHtml(p.nama)}</div>
+              <div style="font-size:11.5px;color:var(--grey);white-space:nowrap;">${escHtml(p.no_hp)}</div>
+            </div>
+          </div>
+        </td>
+        <td class="t-truncate">${escHtml(barangNames)}</td>
+        <td class="t-right t-nowrap">${lg.terjual} item</td>
+        <td class="t-right t-nowrap">${rupiah(lg.hak)}</td>
+        <td class="t-right t-nowrap">${rupiah(lg.paid)}</td>
+        <td class="t-right t-nowrap"><strong style="color:${lg.sisa > 0 ? 'var(--amber-text)' : 'var(--green-text)'};">${rupiah(lg.sisa)}</strong></td>
+        <td class="t-right" style="color:var(--grey-icon);">${svgIcon('chevron-right', 16)}</td>
+      </tr>`;
+    }).join('');
+
+    const mobRows = slice.map(p => {
+      const lg = computeLedger(p);
+      return `<button type="button" class="mobile-row-item" data-pen-id="${escHtml(p.id)}" style="width:100%;border:0;background:transparent;text-align:left;padding:12px 0;border-bottom:1px solid var(--line);">
+        <div class="mobile-row-left">
+          <span class="avatar-initials">${escHtml(p.kode || makeInitials(p.nama))}</span>
+          <div class="mobile-row-meta">
+            <div class="mobile-row-title">${escHtml(p.nama)}</div>
+            <div class="mobile-row-sub">${lg.linked.length} barang · ${escHtml(p.no_hp)}</div>
+          </div>
+        </div>
+        <div class="mobile-row-right">
+          <span style="font-size:10.5px;color:var(--grey);">Sisa</span>
+          <span class="mobile-row-amount" style="color:${lg.sisa > 0 ? 'var(--amber-text)' : 'var(--green-text)'};">${rupiah(lg.sisa)}</span>
+        </div>
+      </button>`;
+    }).join('');
+
+    listContainer.innerHTML = `
+      <div class="table-wrap desktop-only-table">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Penitip</th><th>Barang</th>
+              <th class="t-right">Terjual</th><th class="t-right">Hak</th>
+              <th class="t-right">Dibayar</th><th class="t-right">Sisa</th><th></th>
+            </tr>
+          </thead>
+          <tbody>${deskRows}</tbody>
+        </table>
+      </div>
+      <div class="mobile-card-list">${mobRows}</div>
+      ${renderPagerHtml(list.length, page, perPage, 'penList')}`;
+
+    renderPanel();
+  }
+
+  function renderPanel() {
+    const s = getState();
+
+    if (panelMode === 'add' || panelMode === 'edit') {
+      const p = panelMode === 'edit' ? (s.penitip || []).find(x => x.id === selectedId) : null;
+      panelTitle.textContent = p ? 'Edit Penitip' : 'Tambah Penitip';
+      closeBtn.hidden = false;
+      panelBody.innerHTML = `
+        <form id="penForm" style="display:flex;flex-direction:column;flex:1;" novalidate>
+          <div class="form-group">
+            <label for="penNameInput" class="form-label">Nama Penitip</label>
+            <input type="text" id="penNameInput" class="form-control" value="${escHtml(p ? p.nama : '')}" placeholder="Contoh: Bu Sari" required>
+          </div>
+          <div class="form-group">
+            <label for="penPhoneInput" class="form-label">No. HP</label>
+            <input type="tel" id="penPhoneInput" class="form-control" value="${escHtml(p ? p.no_hp : '')}" placeholder="08xx-xxxx-xxxx" required>
+          </div>
+          <div class="form-group">
+            <label for="penNoteInput" class="form-label">Catatan (opsional)</label>
+            <input type="text" id="penNoteInput" class="form-control" value="${escHtml(p ? p.catatan : '')}" placeholder="Contoh: titip keripik tiap Senin">
+          </div>
+          <div id="penFormError" class="form-error" role="alert" hidden></div>
+          <div class="panel-footer-actions">
+            <button type="button" class="btn btn-outline btn-lg" id="penFormCancel" style="flex:0.8;">Batal</button>
+            <button type="submit" class="btn btn-primary btn-lg" style="flex:1.4;">Simpan</button>
+          </div>
+        </form>`;
+
+      document.getElementById('penFormCancel').onclick = handleCancelPanel;
+      document.getElementById('penForm').onsubmit = function (e) {
+        e.preventDefault();
+        const nama = document.getElementById('penNameInput').value.trim();
+        const hp = document.getElementById('penPhoneInput').value.trim();
+        const cat = document.getElementById('penNoteInput').value.trim();
+        const err = document.getElementById('penFormError');
+        if (!nama || !hp) {
+          err.textContent = 'Nama penitip dan No. HP wajib diisi.';
+          err.hidden = false;
+          return;
+        }
+        err.hidden = true;
+        if (p) {
+          updateState(st => {
+            const target = (st.penitip || []).find(x => x.id === p.id);
+            if (target) {
+              target.nama = nama;
+              target.kode = makeInitials(nama);
+              target.no_hp = hp;
+              target.catatan = cat;
+            }
+          });
+          toast(`Data penitip "${nama}" diperbarui.`);
+          panelMode = 'detail';
+          if (window.innerWidth < 768) {
+            openMobileDetail(p.id);
+          }
+        } else {
+          const slug = nama.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || ('penitip-' + Date.now());
+          const newId = slug + '-' + Math.floor(Math.random() * 90 + 10);
+          updateState(st => {
+            st.penitip = st.penitip || [];
+            st.penitip.push({
+              id: newId,
+              kode: makeInitials(nama),
+              nama,
+              no_hp: hp,
+              catatan: cat,
+              aktif: true,
+              terjual_siklus: 0,
+              hak_siklus: 0,
+              dibuat_pada: '2026-11-24 11:00:00'
+            });
+          });
+          selectedId = newId;
+          panelMode = 'detail';
+          toast(`Penitip "${nama}" ditambahkan.`);
+          if (window.innerWidth < 768) {
+            closeMobilePanel();
+          }
+        }
+        updateKpis();
+        renderList();
+      };
+      return;
+    }
+
+    const p = selectedId ? (s.penitip || []).find(x => x.id === selectedId) : null;
+    if (!p) {
+      panelTitle.textContent = 'Detail Penitip';
+      closeBtn.hidden = true;
+      panelBody.innerHTML = `<div class="panel-empty-state">
+        <div class="panel-empty-icon">${svgIcon('penitip', 28)}</div>
+        <h3 style="margin:0 0 6px;font-size:15px;font-weight:700;color:var(--navy);">Pilih penitip</h3>
+        <p class="panel-empty-text">untuk melihat detailnya.</p>
+      </div>`;
+      return;
+    }
+
+    panelTitle.textContent = 'Detail Penitip';
+    closeBtn.hidden = false;
+    const lg = computeLedger(p);
+
+    // Tab content paginated 2 rows/page on detail panel
+    let tabRows = [];
+    if (activeTab === 'barang') tabRows = lg.linked;
+    else if (activeTab === 'penjualan') tabRows = lg.sales;
+    else tabRows = lg.deposits;
+
+    const subPerPage = 2;
+    const subPages = Math.max(1, Math.ceil(tabRows.length / subPerPage));
+    subPage = Math.max(1, Math.min(subPage, subPages));
+    const subSlice = tabRows.slice((subPage - 1) * subPerPage, subPage * subPerPage);
+
+    let tabListHtml = '';
+    if (!tabRows.length) {
+      tabListHtml = `<p style="text-align:center;color:var(--grey);font-size:13px;padding:24px 0;">Belum ada data pada tab ini.</p>`;
+    } else if (activeTab === 'barang') {
+      tabListHtml = subSlice.map(b => `
+        <div class="ledger-row">
+          <div style="display:flex;align-items:center;gap:10px;min-width:0;">
+            <img src="${escHtml(b.gambar)}" alt="${escHtml(b.nama)}" class="thumb-md">
+            <div>
+              <div class="ledger-date">${escHtml(b.nama)}</div>
+              <div class="ledger-note">Komisi ${rupiah(b.komisi_kantin)} · Stok ${b.stok}</div>
+            </div>
+          </div>
+          <div class="ledger-amt" style="color:var(--blue);">${rupiah(b.harga)}</div>
+        </div>`).join('');
+    } else if (activeTab === 'penjualan') {
+      tabListHtml = subSlice.map(sl => `
+        <div class="ledger-row">
+          <div>
+            <div class="ledger-date">${escHtml(sl.barang)} (${sl.qty} item)</div>
+            <div class="ledger-note">${escHtml(sl.kode)} · ${escHtml(formatShortDate(sl.tanggal))} ${escHtml(sl.waktu)}</div>
+          </div>
+          <div class="ledger-amt">${rupiah(sl.hak)}</div>
+        </div>`).join('');
+    } else {
+      tabListHtml = subSlice.map(st => `
+        <div class="ledger-row">
+          <div style="display:flex;align-items:center;gap:10px;min-width:0;">
+            <span class="notif-circle notif-circle-success" style="width:34px;height:34px;" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M19 12l-7 7-7-7"/></svg>
+            </span>
+            <div>
+              <div class="ledger-date">${escHtml(formatShortDate(st.tanggal))}</div>
+              <div class="ledger-note">${escHtml(st.catatan || 'Setoran')}</div>
+            </div>
+          </div>
+          <div class="ledger-amt">${rupiah(st.jumlah)}</div>
+        </div>`).join('');
+    }
+
+    panelBody.innerHTML = `
+      <div class="penitip-header-card">
+        <span class="avatar-initials avatar-initials-lg">${escHtml(p.kode || makeInitials(p.nama))}</span>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:17px;font-weight:700;color:var(--navy);">${escHtml(p.nama)}</div>
+          <div style="font-size:12.5px;color:var(--grey);">${escHtml(p.no_hp)}</div>
+        </div>
+        <button type="button" class="icon-btn" id="penEditBtn" aria-label="Edit data ${escHtml(p.nama)}" title="Edit Penitip">${svgIcon('edit', 16)}</button>
+        <span class="badge badge-success">Aktif</span>
+      </div>
+
+      <div class="mini-stats-2x2">
+        <div class="mini-stat-box is-blue">
+          <div class="mini-stat-lbl">Total Terjual</div>
+          <div class="mini-stat-val">${lg.terjual} item</div>
+        </div>
+        <div class="mini-stat-box is-green">
+          <div class="mini-stat-lbl">Hak Penitip</div>
+          <div class="mini-stat-val">${rupiah(lg.hak)}</div>
+        </div>
+        <div class="mini-stat-box" style="background:var(--purple-bg);">
+          <div class="mini-stat-lbl">Sudah Dibayar</div>
+          <div class="mini-stat-val">${rupiah(lg.paid)}</div>
+        </div>
+        <div class="mini-stat-box is-amber">
+          <div class="mini-stat-lbl">Sisa Dibayar</div>
+          <div class="mini-stat-val">${rupiah(lg.sisa)}</div>
+        </div>
+      </div>
+
+      <div class="segmented-tabs" role="tablist" aria-label="Detail aktivitas penitip">
+        <button type="button" role="tab" class="seg-tab-btn${activeTab === 'barang' ? ' is-active' : ''}" data-pen-tab="barang" aria-selected="${activeTab === 'barang'}">Barang</button>
+        <button type="button" role="tab" class="seg-tab-btn${activeTab === 'penjualan' ? ' is-active' : ''}" data-pen-tab="penjualan" aria-selected="${activeTab === 'penjualan'}">Penjualan</button>
+        <button type="button" role="tab" class="seg-tab-btn${activeTab === 'setoran' ? ' is-active' : ''}" data-pen-tab="setoran" aria-selected="${activeTab === 'setoran'}">Setoran</button>
+      </div>
+
+      <div style="flex:1;">
+        ${tabListHtml}
+        ${renderPagerHtml(tabRows.length, subPage, subPerPage, 'penSubList')}
+      </div>
+
+      <div class="panel-footer-actions">
+        <button type="button" class="btn btn-primary btn-lg btn-full" id="openCatatSetoranBtn" ${lg.sisa <= 0 ? 'disabled' : ''}>
+          ${svgIcon('plus', 17)}
+          <span>Catat Setoran</span>
+        </button>
+      </div>`;
+
+    document.getElementById('penEditBtn').onclick = () => openEditMode(p.id);
+    document.getElementById('openCatatSetoranBtn').onclick = () => openSetoranModal(p, lg);
+  }
+
+  function openMobileDetail(id) {
+    selectedId = id;
+    panelMode = 'detail';
+    subPage = 1;
+    renderPanel();
+    workspace.classList.add('mobile-showing-panel');
+    setMobileSubheader('Detail Penitip', closeMobilePanel, `<button type="button" class="mobile-header-btn" id="mobEditPenHeaderBtn" aria-label="Edit penitip">${svgIcon('edit', 20)}</button>`);
+    const mobEdit = document.getElementById('mobEditPenHeaderBtn');
+    if (mobEdit) mobEdit.onclick = () => openEditMode(id);
+  }
+
+  function openAddMode(openMob) {
+    panelMode = 'add';
+    renderPanel();
+    if (openMob && window.innerWidth < 768) {
+      workspace.classList.add('mobile-showing-panel');
+      setMobileSubheader('Tambah Penitip', closeMobilePanel);
+    }
+  }
+
+  function openEditMode(id) {
+    selectedId = id;
+    panelMode = 'edit';
+    renderPanel();
+    if (window.innerWidth < 768) {
+      workspace.classList.add('mobile-showing-panel');
+      setMobileSubheader('Edit Penitip', () => openMobileDetail(id));
+    }
+  }
+
+  function closeMobilePanel() {
+    workspace.classList.remove('mobile-showing-panel');
+    setMobileSubheader(null);
+  }
+
+  function handleCancelPanel() {
+    if (panelMode === 'edit') {
+      panelMode = 'detail';
+      if (window.innerWidth < 768) openMobileDetail(selectedId);
+      else renderPanel();
+    } else if (window.innerWidth < 768) {
+      closeMobilePanel();
+    } else {
+      panelMode = 'detail';
+      renderList();
+    }
+  }
+
+  function updateSetoranMath() {
+    if (!activeSetoranPen) return;
+    const lg = computeLedger(activeSetoranPen);
+    const val = parseInt(setoranAmtEl.value || '0', 10) || 0;
+    const after = Math.max(0, lg.sisa - val);
+    setoranMathBox.innerHTML = `
+      <div class="preview-math-row"><span>Sisa sekarang</span><strong>${rupiah(lg.sisa)}</strong></div>
+      <div class="preview-math-row"><span>Disetor</span><strong style="color:var(--green-text);">− ${rupiah(val)}</strong></div>
+      <div class="preview-math-divider"></div>
+      <div class="preview-math-total"><span>Sisa setelah setoran</span><span>${rupiah(after)}</span></div>`;
+  }
+
+  function openSetoranModal(p, lg) {
+    activeSetoranPen = p;
+    setoranBanner.innerHTML = `
+      <span class="avatar-initials">${escHtml(p.kode || makeInitials(p.nama))}</span>
+      <div>
+        <div style="font-size:14px;font-weight:700;color:var(--navy);">${escHtml(p.nama)}</div>
+        <div style="font-size:12px;color:var(--grey);">Sisa yang harus dibayar: ${rupiah(lg.sisa)}</div>
+      </div>`;
+    setoranAmtEl.value = String(lg.sisa);
+    setoranDateEl.value = (getState().pengaturan && getState().pengaturan.tanggal_demo) || '2026-11-24';
+    setoranNoteEl.value = '';
+    setoranErr.hidden = true;
+    updateSetoranMath();
+    setoranBackdrop.hidden = false;
+    setoranAmtEl.focus();
+  }
+
+  function closeSetoranModal() {
+    setoranBackdrop.hidden = true;
+    activeSetoranPen = null;
+  }
+
+  document.getElementById('setoranModalClose').onclick = closeSetoranModal;
+  document.getElementById('setoranCancelBtn').onclick = closeSetoranModal;
+  setoranBackdrop.addEventListener('click', e => { if (e.target === setoranBackdrop) closeSetoranModal(); });
+  document.getElementById('setoranFillFullBtn').onclick = () => {
+    if (!activeSetoranPen) return;
+    setoranAmtEl.value = String(computeLedger(activeSetoranPen).sisa);
+    updateSetoranMath();
+  };
+  setoranAmtEl.addEventListener('input', updateSetoranMath);
+
+  document.getElementById('setoranForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    if (!activeSetoranPen) return;
+    const lg = computeLedger(activeSetoranPen);
+    const val = parseInt(setoranAmtEl.value || '0', 10) || 0;
+    const tgl = setoranDateEl.value;
+    const note = setoranNoteEl.value.trim() || 'Setoran mingguan';
+
+    if (val <= 0) {
+      setoranErr.textContent = 'Jumlah setoran harus lebih dari Rp 0.';
+      setoranErr.hidden = false;
+      return;
+    }
+    if (val > lg.sisa) {
+      setoranErr.textContent = `Jumlah setoran tidak boleh melebihi sisa (${rupiah(lg.sisa)}).`;
+      setoranErr.hidden = false;
+      return;
+    }
+    if (!tgl) {
+      setoranErr.textContent = 'Tanggal setoran wajib diisi.';
+      setoranErr.hidden = false;
+      return;
+    }
+    setoranErr.hidden = true;
+    const penName = activeSetoranPen.nama;
+    const penId = activeSetoranPen.id;
+    updateState(st => {
+      st.setoran = st.setoran || [];
+      st.setoran.unshift({
+        id: st.setoran.length + 1,
+        penitip_id: penId,
+        tanggal: tgl,
+        jumlah: val,
+        catatan: note
+      });
+    });
+    closeSetoranModal();
+    activeTab = 'setoran';
+    subPage = 1;
+    toast(`Setoran ${rupiah(val)} untuk ${penName} dicatat.`);
+    updateKpis();
+    renderList();
+  });
+
+  document.addEventListener('click', function (e) {
+    if (e.target.closest('[data-open-pen-add]')) {
+      openAddMode(true);
+      return;
+    }
+    const tabBtn = e.target.closest('.seg-tab-btn[data-pen-tab]');
+    if (tabBtn) {
+      activeTab = tabBtn.getAttribute('data-pen-tab');
+      subPage = 1;
+      renderPanel();
+      return;
+    }
+    const pgBtn = e.target.closest('.pg-btn[data-page-target]');
+    if (pgBtn && !pgBtn.disabled) {
+      const pager = pgBtn.closest('[data-pager]');
+      const target = parseInt(pgBtn.getAttribute('data-page-target'), 10);
+      if (pager && pager.getAttribute('data-pager') === 'penSubList') {
+        subPage = target;
+        renderPanel();
+      } else {
+        page = target;
+        renderList();
+      }
+      return;
+    }
+    const row = e.target.closest('[data-pen-id]');
+    if (row) {
+      const id = row.getAttribute('data-pen-id');
+      userClosedDetail = false;
+      panelMode = 'detail';
+      activeTab = 'setoran';
+      subPage = 1;
+      if (window.innerWidth < 768) {
+        openMobileDetail(id);
+      } else {
+        selectedId = id;
+        renderList();
+      }
+    }
+  });
+
+  closeBtn.addEventListener('click', function () {
+    userClosedDetail = true;
+    panelMode = 'detail';
+    selectedId = '';
+    renderList();
+  });
+
+  function syncSearch(val) {
+    searchQuery = val;
+    if (searchDesk) searchDesk.value = val;
+    if (searchMob) searchMob.value = val;
+    page = 1;
+    renderList();
+  }
+  if (searchDesk) searchDesk.addEventListener('input', e => syncSearch(e.target.value));
+  if (searchMob)  searchMob.addEventListener('input', e => syncSearch(e.target.value));
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && !setoranBackdrop.hidden) closeSetoranModal();
+  });
+
+  window.addEventListener('resize', () => {
+    if (window.innerWidth >= 768 && workspace.classList.contains('mobile-showing-panel')) {
+      closeMobilePanel();
+      renderList();
+    }
+  });
+
+  updateKpis();
+  renderList();
 });
-
-function openEditPenitip(p) {
-    document.getElementById('editPenitipId').value = p.id;
-    document.getElementById('editPenitipNama').value = p.nama;
-    document.getElementById('editPenitipHp').value = p.hp;
-    document.getElementById('editPenitipCatatan').value = p.catatan || '';
-    openModal('modalEditPenitip');
-}
 </script>
-
-<?php
-admin_page_end('penitip');
+<?php admin_page_end('penitip'); ?>
